@@ -52,13 +52,6 @@
   "plugins": {
     "sql": {
       "preloadConnections": ["sqlite:crosspost.db"]
-    },
-    "stronghold": {
-      "passwordHashAlgorithm": "argon2id"
-    },
-    "autostart": {
-      "mobile": false,
-      "desktop": true
     }
   }
 }

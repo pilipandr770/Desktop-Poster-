@@ -7,33 +7,39 @@ use tauri::State;
 /// Spawn a fresh Python process, send one JSON command, read one JSON response.
 /// Each call is stateless — Python reads one line, responds, then exits (stdin EOF).
 pub fn call_python(command: Value) -> Result<Value, String> {
-    let python_bin = if cfg!(windows) { "python" } else { "python3" };
+    // Locate sidecar script: dev (project root) vs production (next to exe)
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
 
-    // Locate sidecar: dev (project root) vs production (next to exe)
-    let sidecar_path = {
-        let exe_dir = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    let script_candidates = [
+        std::path::PathBuf::from("python-sidecar/main.py"),
+        std::path::PathBuf::from("../python-sidecar/main.py"),
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("python-sidecar/main.py"))
+            .unwrap_or_default(),
+    ];
 
-        let candidates = [
-            // dev: running from crosspost-desktop/
-            std::path::PathBuf::from("python-sidecar/main.py"),
-            // dev: running from src-tauri/
-            std::path::PathBuf::from("../python-sidecar/main.py"),
-            // production: bundled next to exe
-            exe_dir
-                .as_ref()
-                .map(|d| d.join("python-sidecar/main.py"))
-                .unwrap_or_default(),
-        ];
+    let sidecar_path = script_candidates
+        .into_iter()
+        .find(|p| p.exists())
+        .ok_or_else(|| "Python-Sidecar nicht gefunden".to_string())?;
 
-        candidates
-            .into_iter()
-            .find(|p| p.exists())
-            .ok_or_else(|| "Python-Sidecar nicht gefunden".to_string())?
-    };
+    // Prefer venv Python next to the sidecar script, fall back to system python
+    let sidecar_dir = sidecar_path.parent().unwrap_or(std::path::Path::new("."));
+    let venv_python_candidates = [
+        sidecar_dir.join(".venv/Scripts/python.exe"),  // Windows venv
+        sidecar_dir.join(".venv/bin/python"),           // Unix venv
+    ];
+    let python_bin: std::path::PathBuf = venv_python_candidates
+        .into_iter()
+        .find(|p| p.exists())
+        .unwrap_or_else(|| {
+            if cfg!(windows) { "python".into() } else { "python3".into() }
+        });
 
-    let mut child = Command::new(python_bin)
+    let mut child = Command::new(&python_bin)
         .arg(&sidecar_path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
