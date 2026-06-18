@@ -256,40 +256,80 @@ class TwitterHandler:
 
 class TelegramHandler:
     """Telegram через Telethon"""
-    
+
+    def _session_path(self, phone: str) -> str:
+        import os
+        os.makedirs("sessions", exist_ok=True)
+        # Sanitize phone for filename
+        safe = "".join(c for c in phone if c.isdigit() or c == "+")
+        return f"sessions/telegram_{safe}"
+
     def connect(self, credentials: dict) -> dict:
-        try:
+        import os
+        session = self._session_path(credentials["phone"])
+        session_file = session + ".session"
+
+        def _do_connect():
             from telethon.sync import TelegramClient
-            from telethon import functions
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             if not client.is_user_authorized():
-                client.send_code_request(credentials["phone"])
-                return {"success": False, "error": "code_required", "phone": credentials["phone"]}
+                sent = client.send_code_request(credentials["phone"])
+                client.disconnect()
+                return {
+                    "success": False,
+                    "error": "code_required",
+                    "phone": credentials["phone"],
+                    "phone_code_hash": sent.phone_code_hash,
+                }
             me = client.get_me()
             client.disconnect()
             return {
                 "success": True,
                 "profile": {
                     "name": f"{me.first_name} {me.last_name or ''}".strip(),
-                    "username": me.username or ""
-                }
+                    "username": me.username or "",
+                },
+            }
+
+        try:
+            return _do_connect()
+        except Exception as e:
+            err = str(e)
+            # If session DB is corrupted/outdated, delete and retry once
+            if os.path.exists(session_file) and ("database" in err.lower() or "sql" in err.lower() or "upgrade" in err.lower()):
+                try:
+                    os.remove(session_file)
+                    return _do_connect()
+                except Exception as e2:
+                    return {"success": False, "error": str(e2)}
+            return {"success": False, "error": err}
+
+    def verify_code(self, credentials: dict, code: str, phone_code_hash: str) -> dict:
+        """Step 2: confirm OTP code and save session."""
+        try:
+            from telethon.sync import TelegramClient
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client.connect()
+            client.sign_in(credentials["phone"], code, phone_code_hash=phone_code_hash)
+            me = client.get_me()
+            client.disconnect()
+            return {
+                "success": True,
+                "profile": {
+                    "name": f"{me.first_name} {me.last_name or ''}".strip(),
+                    "username": me.username or "",
+                },
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
             from telethon.sync import TelegramClient
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             messages = []
             for dialog in client.iter_dialogs(limit=10):
@@ -307,15 +347,12 @@ class TelegramHandler:
             return {"success": True, "messages": messages}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def post_content(self, credentials: dict, channel: str, content: str) -> dict:
         try:
             from telethon.sync import TelegramClient
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             human_delay(1.0, 4.0)
             client.send_message(channel, content)

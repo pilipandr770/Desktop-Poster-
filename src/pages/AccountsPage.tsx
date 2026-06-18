@@ -331,6 +331,12 @@ export default function AccountsPage() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Platform | null>("instagram");
 
+  // Telegram two-step OTP flow
+  const [tgStep, setTgStep] = useState<"idle" | "code_sent">("idle");
+  const [tgCodeHash, setTgCodeHash] = useState("");
+  const [tgCode, setTgCode] = useState("");
+  const [tgVerifying, setTgVerifying] = useState(false);
+
   useEffect(() => { fetchAccounts(); }, []);
 
   const handleConnect = async (platform: Platform) => {
@@ -370,6 +376,76 @@ export default function AccountsPage() {
         friendly = "Zu viele Versuche. Bitte 10 Minuten warten.";
       toast.error(friendly);
       setConnecting(null);
+    }
+  };
+
+  const handleTelegramConnect = async () => {
+    const creds = {
+      phone: formData["telegram_phone"]?.trim() || "",
+      api_id: formData["telegram_api_id"]?.trim() || "",
+      api_hash: formData["telegram_api_hash"]?.trim() || "",
+    };
+    if (!creds.phone || !creds.api_id || !creds.api_hash) {
+      toast.error("Bitte alle Telegram-Felder ausfüllen");
+      return;
+    }
+    try {
+      setConnecting("telegram");
+      const res = await invoke<any>("send_to_sidecar", {
+        command: { action: "connect", platform: "telegram", params: { credentials: creds } },
+      });
+      if (res.success) {
+        // Session already authorized — just add to DB
+        await addAccount("telegram", creds);
+        toast.success("✓ Telegram erfolgreich verbunden!");
+        setExpanded(null);
+        setTgStep("idle");
+      } else if (res.error === "code_required") {
+        setTgCodeHash(res.phone_code_hash || "");
+        setTgStep("code_sent");
+        toast("📱 Code wurde per Telegram gesendet. Bitte eingeben.", { duration: 5000 });
+      } else {
+        toast.error(String(res.error).slice(0, 150));
+      }
+    } catch (e: any) {
+      toast.error(String(e).slice(0, 150));
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const handleTelegramVerify = async () => {
+    const creds = {
+      phone: formData["telegram_phone"]?.trim() || "",
+      api_id: formData["telegram_api_id"]?.trim() || "",
+      api_hash: formData["telegram_api_hash"]?.trim() || "",
+    };
+    if (!tgCode.trim()) {
+      toast.error("Bitte den Code eingeben");
+      return;
+    }
+    try {
+      setTgVerifying(true);
+      const res = await invoke<any>("send_to_sidecar", {
+        command: {
+          action: "verify_code",
+          platform: "telegram",
+          params: { credentials: creds, code: tgCode.trim(), phone_code_hash: tgCodeHash },
+        },
+      });
+      if (res.success) {
+        await addAccount("telegram", creds);
+        toast.success("✓ Telegram erfolgreich verbunden!");
+        setExpanded(null);
+        setTgStep("idle");
+        setTgCode("");
+      } else {
+        toast.error(String(res.error || "Falscher Code").slice(0, 150));
+      }
+    } catch (e: any) {
+      toast.error(String(e).slice(0, 150));
+    } finally {
+      setTgVerifying(false);
     }
   };
 
@@ -504,7 +580,7 @@ export default function AccountsPage() {
                   }} />
                 </div>
               )}
-              {isExpanded && platform.id !== "whatsapp" && (
+              {isExpanded && platform.id !== "whatsapp" && platform.id !== "telegram" && (
                 <div className="px-4 pb-4 space-y-3" style={{ background: "var(--mantle)" }}>
                   {/* Divider */}
                   <div style={{ height: 1, background: "var(--surface0)" }} />
@@ -583,6 +659,103 @@ export default function AccountsPage() {
                       <><Plus size={15} /> Verbinden</>
                     )}
                   </button>
+                </div>
+              )}
+
+              {/* Telegram two-step flow */}
+              {isExpanded && platform.id === "telegram" && (
+                <div className="px-4 pb-4 space-y-3" style={{ background: "var(--mantle)" }}>
+                  <div style={{ height: 1, background: "var(--surface0)" }} />
+
+                  <p className="text-xs py-2 px-3 rounded-lg"
+                    style={{ background: "var(--yellow)15", color: "var(--yellow)", borderLeft: "3px solid var(--yellow)" }}>
+                    API ID und Hash aus my.telegram.org/apps
+                  </p>
+
+                  <div className="flex flex-col gap-1.5">
+                    <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 text-xs hover:underline" style={{ color: "var(--blue)" }}>
+                      <ExternalLink size={11} /> API ID &amp; Hash erstellen → my.telegram.org
+                    </a>
+                  </div>
+
+                  {tgStep === "idle" && (
+                    <>
+                      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
+                        {[
+                          { key: "phone", label: "Telefonnummer", type: "text", placeholder: "+49 160 000 0000" },
+                          { key: "api_id", label: "API ID", type: "text", placeholder: "12345678" },
+                          { key: "api_hash", label: "API Hash", type: "password", placeholder: "32-stelliger Hash" },
+                        ].map((f) => (
+                          <div key={f.key}>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
+                              {f.label}
+                            </label>
+                            <input
+                              type={f.type}
+                              placeholder={f.placeholder}
+                              value={formData[`telegram_${f.key}`] || ""}
+                              onChange={(e) => setFormData((p) => ({ ...p, [`telegram_${f.key}`]: e.target.value }))}
+                              style={{ background: "var(--surface0)", border: "1px solid var(--surface1)", borderRadius: 8, padding: "8px 12px", color: "var(--text)", width: "100%", fontSize: 13, outline: "none" }}
+                              onFocus={(e) => (e.target.style.borderColor = "#2AABEE")}
+                              onBlur={(e) => (e.target.style.borderColor = "var(--surface1)")}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleTelegramConnect}
+                        disabled={connecting === "telegram"}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg, #2AABEE, #1a7bbf)", color: "white", boxShadow: "0 4px 15px #2AABEE40" }}
+                      >
+                        {connecting === "telegram"
+                          ? <><Loader size={15} className="animate-spin" /> Sende Code…</>
+                          : <><Plus size={15} /> Code senden</>}
+                      </button>
+                    </>
+                  )}
+
+                  {tgStep === "code_sent" && (
+                    <>
+                      <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--green)15", border: "1px solid var(--green)40", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>📱</span>
+                        <p style={{ color: "var(--green)", fontSize: 13, fontWeight: 600 }}>
+                          Bestätigungscode wurde per Telegram gesendet!
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
+                          6-stelliger Code aus Telegram
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="12345"
+                          maxLength={6}
+                          value={tgCode}
+                          onChange={(e) => setTgCode(e.target.value.replace(/\D/g, ""))}
+                          autoFocus
+                          style={{ background: "var(--surface0)", border: "2px solid #2AABEE", borderRadius: 8, padding: "10px 12px", color: "var(--text)", width: "100%", fontSize: 18, outline: "none", textAlign: "center", letterSpacing: 4 }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => { setTgStep("idle"); setTgCode(""); }}
+                          style={{ flex: 1, padding: "8px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13 }}
+                        >
+                          Zurück
+                        </button>
+                        <button
+                          onClick={handleTelegramVerify}
+                          disabled={tgVerifying || tgCode.length < 5}
+                          className="flex items-center justify-center gap-2 disabled:opacity-50"
+                          style={{ flex: 2, padding: "8px", borderRadius: 8, background: "linear-gradient(135deg, #2AABEE, #1a7bbf)", color: "white", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                        >
+                          {tgVerifying ? <><Loader size={13} className="animate-spin" /> Prüfe…</> : <><CheckCircle size={13} /> Bestätigen</>}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
