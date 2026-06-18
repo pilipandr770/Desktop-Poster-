@@ -10,9 +10,10 @@ const PLATFORMS_CONFIG = [
     color: "#E1306C",
     icon: Instagram,
     fields: [
-      { key: "username", label: "Benutzername", type: "text" },
-      { key: "password", label: "Passwort", type: "password" },
+      { key: "username", label: "Benutzername (nicht E-Mail!)", type: "text", placeholder: "z.B. andrii.photo" },
+      { key: "password", label: "Passwort", type: "password", placeholder: "" },
     ],
+    note: "Instagram-Benutzername eingeben, keine E-Mail-Adresse",
   },
   {
     id: "facebook" as Platform,
@@ -90,15 +91,36 @@ export default function AccountsPage() {
 
   useEffect(() => { fetchAccounts(); }, []);
 
-  const handleConnect = async (platform: Platform) => {
+  const handleConnect = async (platform: Platform, creds: Record<string, string>) => {
+    // Validate all fields are filled
+    const empty = Object.entries(creds).find(([, v]) => !v.trim());
+    if (empty) {
+      toast.error("Bitte alle Felder ausfüllen");
+      return;
+    }
     try {
       setConnecting(platform);
-      await addAccount(platform, formData);
+      await addAccount(platform, creds);
       toast.success(`${platform} erfolgreich verbunden!`);
       setConnecting(null);
-      setFormData({});
+      // Clear only this platform's fields
+      setFormData((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => { if (k.startsWith(platform + "_")) delete next[k]; });
+        return next;
+      });
     } catch (e: any) {
-      toast.error(`Verbindungsfehler: ${e}`);
+      const msg = String(e);
+      // Surface friendly errors
+      if (msg.includes("challenge_required") || msg.includes("checkpoint")) {
+        toast.error("Instagram: Sicherheitsüberprüfung erforderlich. Bitte im Browser einloggen und dann erneut versuchen.");
+      } else if (msg.includes("bad_password") || msg.includes("wrong password") || msg.includes("Invalid credentials")) {
+        toast.error("Falsches Passwort oder Benutzername");
+      } else if (msg.includes("two_factor")) {
+        toast.error("Zwei-Faktor-Authentifizierung aktiv. Bitte App-Passwort verwenden.");
+      } else {
+        toast.error(`Verbindungsfehler: ${msg.slice(0, 120)}`);
+      }
       setConnecting(null);
     }
   };
@@ -223,7 +245,7 @@ export default function AccountsPage() {
                         </label>
                         <input
                           type={field.type}
-                          placeholder={"placeholder" in field ? field.placeholder : ""}
+                          placeholder={"placeholder" in field ? (field as any).placeholder : ""}
                           value={formData[`${platform.id}_${field.key}`] || ""}
                           onChange={(e) =>
                             setFormData((prev) => ({
@@ -247,11 +269,12 @@ export default function AccountsPage() {
 
                   <button
                     onClick={() => {
+                      // Strip platform prefix so Python sidecar gets {username, password} not {instagram_username, ...}
                       const creds: Record<string, string> = {};
                       platform.fields.forEach((f) => {
                         creds[f.key] = formData[`${platform.id}_${f.key}`] || "";
                       });
-                      handleConnect(platform.id);
+                      handleConnect(platform.id, creds);
                     }}
                     disabled={isConnecting}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
