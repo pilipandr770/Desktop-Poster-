@@ -32,6 +32,7 @@ fn main() {
         ))
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(commands::whatsapp::WhatsAppProcess(std::sync::Mutex::new(None)))
         .setup(|app| {
             let app_handle = app.handle().clone();
             let scheduler_handle = app.handle().clone();
@@ -69,6 +70,10 @@ fn main() {
             commands::sidecar::stop_python_sidecar,
             commands::sidecar::send_to_sidecar,
             commands::sidecar::generate_ai_content,
+            // WhatsApp
+            commands::whatsapp::start_whatsapp_sidecar,
+            commands::whatsapp::stop_whatsapp_sidecar,
+            commands::whatsapp::whatsapp_call,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

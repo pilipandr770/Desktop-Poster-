@@ -1,12 +1,124 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus, Trash2, CheckCircle, Loader,
   Instagram, Facebook, Linkedin, Twitter, Mail,
   MessageCircle, Bot, ExternalLink, ChevronDown, ChevronUp,
-  Clock, Circle
+  Clock, Circle, RefreshCw, LogOut
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAccountsStore, type Platform } from "../store/accounts";
 import toast from "react-hot-toast";
+
+// ── WhatsApp QR flow ─────────────────────────────────────────────────────────
+function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void }) {
+  const [step, setStep] = useState<"idle" | "starting" | "qr" | "connected" | "error">("idle");
+  const [qrImage, setQrImage] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+
+  const startConnect = async () => {
+    setStep("starting");
+    setErrorMsg("");
+    try {
+      await invoke("start_whatsapp_sidecar");
+      // wait a moment for server to start
+      await new Promise(r => setTimeout(r, 1500));
+      await invoke<any>("whatsapp_call", { method: "POST", path: "/instance/init", body: null });
+      setStep("qr");
+      // Poll for QR / connection
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await invoke<any>("whatsapp_call", { method: "GET", path: "/instance/qr", body: null });
+          if (res.connected) {
+            stopPoll();
+            const status = await invoke<any>("whatsapp_call", { method: "GET", path: "/instance/status", body: null });
+            setPhone(status.phone || "WhatsApp");
+            setStep("connected");
+            onConnected(status.phone || "WhatsApp");
+          } else if (res.qr) {
+            setQrImage(res.qr);
+          }
+        } catch { /* server not ready yet */ }
+      }, 2000);
+    } catch (e: any) {
+      setStep("error");
+      setErrorMsg(String(e));
+    }
+  };
+
+  const logout = async () => {
+    stopPoll();
+    try {
+      await invoke("whatsapp_call", { method: "POST", path: "/instance/logout", body: null });
+      await invoke("stop_whatsapp_sidecar");
+    } catch { /* ok */ }
+    setStep("idle");
+    setQrImage(null);
+    setPhone(null);
+  };
+
+  useEffect(() => () => stopPoll(), []);
+
+  if (step === "connected") return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
+      <CheckCircle size={18} style={{ color: "var(--green)" }} />
+      <div style={{ flex: 1 }}>
+        <p style={{ color: "var(--text)", fontSize: 13, fontWeight: 600 }}>Verbunden</p>
+        <p style={{ color: "var(--overlay0)", fontSize: 12 }}>{phone}</p>
+      </div>
+      <button onClick={logout} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--red)", background: "none", border: "none", cursor: "pointer", padding: "6px 10px", borderRadius: 6 }}>
+        <LogOut size={13} /> Abmelden
+      </button>
+    </div>
+  );
+
+  if (step === "error") return (
+    <div style={{ padding: "12px 14px" }}>
+      <p style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>
+        ⚠️ {errorMsg.includes("Node") ? "Node.js nicht gefunden. Bitte installieren: nodejs.org" : errorMsg.slice(0, 120)}
+      </p>
+      <button onClick={startConnect} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "white", background: "#25D366", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 8, fontWeight: 600 }}>
+        <RefreshCw size={13} /> Erneut versuchen
+      </button>
+    </div>
+  );
+
+  if (step === "qr" || step === "starting") return (
+    <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      {step === "starting" || !qrImage ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--subtext0)", fontSize: 13 }}>
+          <Loader size={16} className="animate-spin" />
+          WhatsApp-Server wird gestartet…
+        </div>
+      ) : (
+        <>
+          <p style={{ color: "var(--text)", fontSize: 13, fontWeight: 600 }}>QR-Code mit WhatsApp scannen</p>
+          <p style={{ color: "var(--overlay1)", fontSize: 12, textAlign: "center" }}>
+            Öffnen Sie WhatsApp → Einstellungen → Verknüpfte Geräte → Gerät hinzufügen
+          </p>
+          <img src={qrImage} alt="WhatsApp QR Code"
+            style={{ width: 220, height: 220, borderRadius: 12, border: "3px solid #25D366", background: "white", padding: 4 }} />
+          <p style={{ color: "var(--overlay0)", fontSize: 11 }}>QR-Code aktualisiert sich automatisch</p>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ padding: "14px" }}>
+      <p style={{ color: "var(--overlay1)", fontSize: 12, marginBottom: 10 }}>
+        Verbinden Sie Ihr WhatsApp über QR-Code — kein separater Account nötig.
+      </p>
+      <button onClick={startConnect}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #25D366, #128C7E)", color: "white", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 15px #25D36640" }}>
+        <MessageCircle size={15} /> Mit WhatsApp verbinden
+      </button>
+    </div>
+  );
+}
 
 // ── Platform definitions ────────────────────────────────────────────────────
 
@@ -248,8 +360,7 @@ export default function AccountsPage() {
               {/* Card header */}
               <button
                 style={{ display: "flex", width: "100%", alignItems: "center", gap: 12, padding: "10px 14px", textAlign: "left", background: "var(--mantle)" }}
-                onClick={() => !platform.comingSoon && setExpanded(isExpanded ? null : platform.id)}
-                disabled={!!platform.comingSoon}
+                onClick={() => setExpanded(isExpanded ? null : platform.id)}
               >
                 {/* Icon with gradient bg */}
                 <div
@@ -270,10 +381,10 @@ export default function AccountsPage() {
                         Verbunden
                       </span>
                     )}
-                    {platform.comingSoon && (
+                    {platform.id === "whatsapp" && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
-                        style={{ background: "var(--yellow)22", color: "var(--yellow)" }}>
-                        <Clock size={10} /> In Entwicklung
+                        style={{ background: "var(--green)22", color: "var(--green)" }}>
+                        <MessageCircle size={10} /> QR-Code
                       </span>
                     )}
                   </div>
@@ -282,14 +393,20 @@ export default function AccountsPage() {
                   )}
                 </div>
 
-                {!platform.comingSoon && (
-                  isExpanded ? <ChevronUp size={16} style={{ color: "var(--overlay1)" }} />
-                             : <ChevronDown size={16} style={{ color: "var(--overlay1)" }} />
-                )}
+                <ChevronUp size={16} style={{ color: "var(--overlay1)", display: isExpanded ? "block" : "none" }} />
+                <ChevronDown size={16} style={{ color: "var(--overlay1)", display: isExpanded ? "none" : "block" }} />
               </button>
 
               {/* Expanded form */}
-              {isExpanded && !platform.comingSoon && (
+              {isExpanded && platform.id === "whatsapp" && (
+                <div style={{ background: "var(--mantle)", borderTop: "1px solid var(--surface0)" }}>
+                  <WhatsAppConnect onConnected={(phone) => {
+                    toast.success(`✓ WhatsApp verbunden: ${phone}`);
+                    setExpanded(null);
+                  }} />
+                </div>
+              )}
+              {isExpanded && platform.id !== "whatsapp" && (
                 <div className="px-4 pb-4 space-y-3" style={{ background: "var(--mantle)" }}>
                   {/* Divider */}
                   <div style={{ height: 1, background: "var(--surface0)" }} />

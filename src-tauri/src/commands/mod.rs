@@ -4,3 +4,4 @@ pub mod messages;
 pub mod posts;
 pub mod settings;
 pub mod sidecar;
+pub mod whatsapp;
