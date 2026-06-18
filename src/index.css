@@ -1,0 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ── */
+:root {
+  /* Catppuccin Mocha — тёмная тема для продуктивности */
+  --crust:    #11111b;
+  --mantle:   #181825;
+  --base:     #1e1e2e;
+  --surface0: #313244;
+  --surface1: #45475a;
+  --surface2: #585b70;
+  --overlay0: #6c7086;
+  --overlay1: #7f849c;
+  --overlay2: #9399b2;
+  --subtext0: #a6adc8;
+  --subtext1: #bac2de;
+  --text:     #cdd6f4;
+  --lavender: #b4befe;
+  --blue:     #89b4fa;
+  --sapphire: #74c7ec;
+  --sky:      #89dceb;
+  --teal:     #94e2d5;
+  --green:    #a6e3a1;
+  --yellow:   #f9e2af;
+  --peach:    #fab387;
+  --maroon:   #eba0ac;
+  --red:      #f38ba8;
+  --mauve:    #cba6f7;
+  --pink:     #f5c2e7;
+  --flamingo: #f2cdcd;
+  --rosewater: #f5e0dc;
+
+  /* Platform colors */
+  --instagram: #E1306C;
+  --facebook:  #1877F2;
+  --whatsapp:  #25D366;
+  --linkedin:  #0A66C2;
+  --twitter:   #1DA1F2;
+  --telegram:  #2AABEE;
+  --email:     #EA4335;
+}
+
+/* ── Base ── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--crust);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--mantle);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--surface2);
+}
+
+/* ── Platform badge colors ── */
+.platform-instagram { background-color: var(--instagram); }
+.platform-facebook  { background-color: var(--facebook);  }
+.platform-whatsapp  { background-color: var(--whatsapp);  }
+.platform-linkedin  { background-color: var(--linkedin);  }
+.platform-twitter   { background-color: var(--twitter);   }
+.platform-telegram  { background-color: var(--telegram);  }
+.platform-email     { background-color: var(--email);     }
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* ── Textarea ── */
+textarea {
+  resize: none;
+  font-family: inherit;
+}
+
+input, textarea, select {
+  background: var(--surface0);
+  color: var(--text);
+  border: 1px solid var(--surface1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--blue);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--blue);
+  color: var(--crust);
+}
+.btn-primary:hover {
+  background: var(--lavender);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--subtext1);
+  border: 1px solid var(--surface1);
+}
+.btn-ghost:hover {
+  background: var(--surface0);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--red);
+  color: var(--crust);
+}
+.btn-danger:hover {
+  opacity: 0.9;
+}

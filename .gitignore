@@ -1,0 +1,39 @@
+# Rust / Cargo
+src-tauri/target/
+
+# Node / npm
+node_modules/
+dist/
+
+# Tauri build artifacts
+src-tauri/WixTools/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+python-sidecar/__pycache__/
+python-sidecar/sessions/
+*.egg-info/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# SQLite databases (local data — never commit)
+*.db
+*.db-wal
+*.db-shm
+
+# Environment / secrets
+.env
+.env.local
