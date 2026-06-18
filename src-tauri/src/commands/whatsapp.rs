@@ -3,6 +3,54 @@ use std::process::{Child, Command, Stdio};
 use tauri::State;
 use serde_json::Value;
 
+/// Check whether Node.js is installed. Returns version string or None.
+#[tauri::command]
+pub fn check_nodejs() -> Option<String> {
+    let bin = if cfg!(windows) { "node.exe" } else { "node" };
+    Command::new(bin)
+        .arg("--version")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+}
+
+/// Install Node.js LTS via winget (Windows) or open download page as fallback.
+#[tauri::command]
+pub fn install_nodejs() -> Result<String, String> {
+    // Try winget (available on Windows 10 2004+ and Windows 11)
+    let winget = Command::new("winget")
+        .args([
+            "install",
+            "OpenJS.NodeJS.LTS",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+            "--silent",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+
+    if winget.is_ok() {
+        return Ok("winget".to_string());
+    }
+
+    // Fallback: open browser
+    let open_result = if cfg!(windows) {
+        Command::new("cmd").args(["/c", "start", "https://nodejs.org/en/download/"]).spawn()
+    } else if cfg!(target_os = "macos") {
+        Command::new("open").arg("https://nodejs.org/en/download/").spawn()
+    } else {
+        Command::new("xdg-open").arg("https://nodejs.org/en/download/").spawn()
+    };
+
+    open_result
+        .map(|_| "browser".to_string())
+        .map_err(|e| e.to_string())
+}
+
 pub struct WhatsAppProcess(pub Mutex<Option<Child>>);
 
 fn whatsapp_sidecar_dir() -> std::path::PathBuf {

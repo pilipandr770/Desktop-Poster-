@@ -74,6 +74,8 @@ fn main() {
             commands::whatsapp::start_whatsapp_sidecar,
             commands::whatsapp::stop_whatsapp_sidecar,
             commands::whatsapp::whatsapp_call,
+            commands::whatsapp::check_nodejs,
+            commands::whatsapp::install_nodejs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

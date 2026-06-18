@@ -11,11 +11,25 @@ import toast from "react-hot-toast";
 
 // ── WhatsApp QR flow ─────────────────────────────────────────────────────────
 function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void }) {
-  const [step, setStep] = useState<"idle" | "starting" | "qr" | "connected" | "error">("idle");
+  const [step, setStep] = useState<"idle" | "checking" | "no-node" | "installing" | "starting" | "qr" | "connected" | "error">("checking");
+  const [nodeVersion, setNodeVersion] = useState<string | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [installMethod, setInstallMethod] = useState<"winget" | "browser" | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Check Node.js on mount
+  useEffect(() => {
+    invoke<string | null>("check_nodejs").then((ver) => {
+      if (ver) {
+        setNodeVersion(ver);
+        setStep("idle");
+      } else {
+        setStep("no-node");
+      }
+    });
+  }, []);
 
   const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
 
@@ -61,6 +75,85 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
   };
 
   useEffect(() => () => stopPoll(), []);
+
+  const installNode = async () => {
+    setStep("installing");
+    try {
+      const method = await invoke<string>("install_nodejs");
+      setInstallMethod(method === "winget" ? "winget" : "browser");
+    } catch (e) {
+      setStep("no-node");
+      toast.error("Installation fehlgeschlagen. Bitte manuell installieren: nodejs.org");
+    }
+  };
+
+  const recheckNode = async () => {
+    setStep("checking");
+    const ver = await invoke<string | null>("check_nodejs");
+    if (ver) { setNodeVersion(ver); setStep("idle"); }
+    else setStep(installMethod ? "installing" : "no-node");
+  };
+
+  if (step === "checking") return (
+    <div style={{ padding: "14px", display: "flex", alignItems: "center", gap: 8, color: "var(--subtext0)", fontSize: 13 }}>
+      <Loader size={14} className="animate-spin" /> Node.js wird geprüft…
+    </div>
+  );
+
+  if (step === "no-node") return (
+    <div style={{ padding: "14px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px", borderRadius: 10, background: "var(--yellow)15", border: "1px solid var(--yellow)40", marginBottom: 12 }}>
+        <span style={{ fontSize: 18 }}>⚠️</span>
+        <div>
+          <p style={{ color: "var(--yellow)", fontWeight: 600, fontSize: 13 }}>Node.js nicht gefunden</p>
+          <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 2 }}>
+            WhatsApp benötigt Node.js (kostenlos, von nodejs.org).
+          </p>
+        </div>
+      </div>
+      <button onClick={installNode}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #25D366, #128C7E)", color: "white", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 15px #25D36640", marginBottom: 8 }}>
+        <Plus size={15} /> Node.js automatisch installieren
+      </button>
+      <p style={{ color: "var(--overlay0)", fontSize: 11, textAlign: "center" }}>
+        Verwendet Windows winget — oder öffnet nodejs.org als Fallback
+      </p>
+    </div>
+  );
+
+  if (step === "installing") return (
+    <div style={{ padding: "14px" }}>
+      {installMethod === "winget" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)", fontSize: 13 }}>
+            <Loader size={14} className="animate-spin" style={{ color: "var(--green)" }} />
+            <span><b>Node.js wird installiert</b> (winget läuft im Hintergrund…)</span>
+          </div>
+          <p style={{ color: "var(--overlay1)", fontSize: 12 }}>
+            Die Installation dauert ca. 1–2 Minuten. Klicken Sie danach auf "Prüfen".
+          </p>
+          <button onClick={recheckNode}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+            <RefreshCw size={13} /> Node.js prüfen
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)", fontSize: 13 }}>
+            <ExternalLink size={14} style={{ color: "var(--blue)" }} />
+            <span>Browser geöffnet → <b>nodejs.org</b></span>
+          </div>
+          <p style={{ color: "var(--overlay1)", fontSize: 12 }}>
+            Laden Sie Node.js LTS herunter, installieren Sie es, und klicken Sie danach auf "Prüfen".
+          </p>
+          <button onClick={recheckNode}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+            <RefreshCw size={13} /> Node.js prüfen
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   if (step === "connected") return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
@@ -112,6 +205,11 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
       <p style={{ color: "var(--overlay1)", fontSize: 12, marginBottom: 10 }}>
         Verbinden Sie Ihr WhatsApp über QR-Code — kein separater Account nötig.
       </p>
+      {nodeVersion && (
+        <p style={{ color: "var(--overlay0)", fontSize: 11, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
+          <CheckCircle size={11} style={{ color: "var(--green)" }} /> Node.js {nodeVersion} ✓
+        </p>
+      )}
       <button onClick={startConnect}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #25D366, #128C7E)", color: "white", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 15px #25D36640" }}>
         <MessageCircle size={15} /> Mit WhatsApp verbinden
