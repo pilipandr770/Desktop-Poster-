@@ -6,6 +6,7 @@ use tauri::Manager;
 mod commands;
 mod db;
 mod license;
+mod scheduler;
 
 fn main() {
     tauri::Builder::default()
@@ -27,13 +28,16 @@ fn main() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
+            let scheduler_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 db::initialize(&app_handle)
                     .await
                     .expect("Failed to initialize database");
             });
+            scheduler::start(scheduler_handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

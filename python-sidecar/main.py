@@ -9,12 +9,23 @@ import sys
 import json
 import asyncio
 import logging
+import pathlib
 import random
 import time
 from typing import Any
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("crosspost-sidecar")
+
+# ─── Session cache helpers ────────────────────────────────────────────────────
+
+def _sessions_dir() -> pathlib.Path:
+    d = pathlib.Path.home() / ".crosspost" / "sessions"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+def _ig_cache(username: str) -> pathlib.Path:
+    return _sessions_dir() / f"ig_{username}.json"
 
 
 # ─── Human-like delays ────────────────────────────────────────────────────────
@@ -37,23 +48,51 @@ def typing_delay(text: str):
 
 class InstagramHandler:
     """Instagram + Facebook через Instagrapi"""
-    
+
+    def _client(self, session_or_creds: dict):
+        """Return authenticated Instagrapi Client.
+
+        Accepts either raw credentials {username, password} or saved Instagrapi settings.
+        Username/password path uses a file cache to avoid full re-login on every call.
+        """
+        from instagrapi import Client
+        cl = Client()
+
+        username = session_or_creds.get("username")
+        password = session_or_creds.get("password")
+
+        if username and password:
+            cache = _ig_cache(username)
+            if cache.exists():
+                try:
+                    cl.load_settings(cache)
+                    cl.login(username, password)  # refreshes token silently
+                    cl.dump_settings(cache)
+                    return cl
+                except Exception:
+                    cache.unlink(missing_ok=True)
+            cl.login(username, password)
+            cl.dump_settings(cache)
+        else:
+            cl.set_settings(session_or_creds)
+        return cl
+
     def connect(self, credentials: dict) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.login(credentials["username"], credentials["password"])
-            # Сохраняем сессию
+            cl = self._client(credentials)
+            info = cl.account_info()
             session_data = cl.get_settings()
-            return {"success": True, "session": session_data}
+            return {
+                "success": True,
+                "session": session_data,
+                "profile": {"name": info.full_name, "username": info.username},
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def get_messages(self, session: dict, limit: int = 20) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
+            cl = self._client(session)
             threads = cl.direct_threads(amount=limit)
             messages = []
             for thread in threads:
@@ -73,21 +112,17 @@ class InstagramHandler:
     
     def send_message(self, session: dict, user_id: str, text: str) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
+            cl = self._client(session)
             human_delay()
             typing_delay(text)
             cl.direct_send(text, [int(user_id)])
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def post_content(self, session: dict, content: str, media_path: str = None) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
+            cl = self._client(session)
             human_delay(3.0, 10.0)
             if media_path:
                 media = cl.photo_upload(media_path, content)
