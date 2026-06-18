@@ -15,10 +15,15 @@ fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_stronghold::Builder::new(|password| {
-                let config = argon2::Config::default();
-                let salt = b"crosspost-desktop-salt-v1";
-                argon2::hash_raw(password.as_ref(), salt, &config)
-                    .expect("Failed to derive stronghold key")
+                // argon2 v0.4 (RustCrypto) API
+                use argon2::Argon2;
+                // Salt must be exactly 16 bytes
+                let salt = b"crosspost-salt-1";
+                let mut key = vec![0u8; 32];
+                Argon2::default()
+                    .hash_password_into(password.as_ref(), salt, &mut key)
+                    .expect("Failed to derive stronghold key");
+                key
             })
             .build(),
         )

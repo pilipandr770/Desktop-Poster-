@@ -43,13 +43,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "sidecars/*"
-    ],
-    "externalBin": [
-      "sidecars/python-sidecar",
-      "sidecars/evolution-api"
-    ],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
