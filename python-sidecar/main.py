@@ -459,9 +459,19 @@ class AIHandler:
 
 # ─── Message Router ────────────────────────────────────────────────────────────
 
+class WhatsAppHandler:
+    def connect(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp-Integration ist noch in Entwicklung. Bald verfügbar!"}
+    def post(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp noch nicht verfügbar."}
+    def fetch_messages(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp noch nicht verfügbar."}
+
+
 handlers = {
     "instagram": InstagramHandler(),
     "facebook": InstagramHandler(),  # Instagrapi handles both
+    "whatsapp": WhatsAppHandler(),
     "linkedin": LinkedInHandler(),
     "twitter": TwitterHandler(),
     "telegram": TelegramHandler(),

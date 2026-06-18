@@ -38,13 +38,18 @@ export default function Layout() {
   const connectedAccounts = accounts.filter((a) => a.status === "connected");
 
   return (
-    <div className="flex h-full" style={{ background: "var(--crust)" }}>
+    <div style={{ display: "flex", height: "100%", width: "100%", background: "var(--crust)" }}>
       {/* ── Sidebar ── */}
       <aside
-        className="flex flex-col w-56 shrink-0 border-r"
         style={{
+          display: "flex",
+          flexDirection: "column",
+          width: 160,
+          minWidth: 160,
+          flexShrink: 0,
           background: "var(--mantle)",
-          borderColor: "var(--surface0)",
+          borderRight: "1px solid var(--surface0)",
+          height: "100%",
         }}
       >
         {/* Logo */}
@@ -69,22 +74,19 @@ export default function Layout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-1 p-3 flex-1">
+        <nav style={{ display: "flex", flexDirection: "column", padding: "12px 10px", flex: 1, gap: 4 }}>
           {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive
-                    ? "font-medium"
-                    : "hover:opacity-80"
-                }`
-              }
+              className="flex items-center gap-3 rounded-lg text-sm transition-all"
               style={({ isActive }) => ({
                 background: isActive ? "var(--surface0)" : "transparent",
                 color: isActive ? "var(--text)" : "var(--subtext0)",
+                padding: "10px 12px",
+                fontWeight: isActive ? 600 : 400,
+                borderRadius: 8,
               })}
             >
               <Icon size={16} />
@@ -150,7 +152,7 @@ export default function Layout() {
       </aside>
 
       {/* ── Main ── */}
-      <main className="flex-1 overflow-hidden" style={{ background: "var(--base)" }}>
+      <main style={{ flex: 1, overflow: "hidden", background: "var(--base)", height: "100%" }}>
         <Outlet />
       </main>
     </div>
