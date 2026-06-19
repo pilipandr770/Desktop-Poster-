@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   Send, Inbox, Users, Settings, Key,
   Instagram, Facebook, MessageCircle, Linkedin,
-  Twitter, Mail, Bot, Circle
+  Twitter, Mail, Bot, Circle, Zap
 } from "lucide-react";
 import { useAccountsStore } from "../store/accounts";
 
@@ -35,59 +35,64 @@ const platformColors: Record<string, string> = {
 
 export default function Layout() {
   const accounts = useAccountsStore((s) => s.accounts);
-  const connectedAccounts = accounts.filter((a) => a.status === "connected");
+  const connected = accounts.filter((a) => a.status === "connected");
 
   return (
     <div style={{ display: "flex", height: "100%", width: "100%", background: "var(--crust)" }}>
       {/* ── Sidebar ── */}
-      <aside
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: 160,
-          minWidth: 160,
-          flexShrink: 0,
-          background: "var(--mantle)",
-          borderRight: "1px solid var(--surface0)",
-          height: "100%",
-        }}
-      >
+      <aside style={{
+        display: "flex",
+        flexDirection: "column",
+        width: 220,
+        minWidth: 220,
+        flexShrink: 0,
+        background: "var(--mantle)",
+        borderRight: "1.5px solid var(--surface0)",
+        height: "100%",
+      }}>
+
         {/* Logo */}
-        <div
-          className="flex items-center gap-3 px-4 py-5 border-b"
-          style={{ borderColor: "var(--surface0)" }}
-        >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
-            style={{ background: "var(--blue)", color: "var(--crust)" }}
-          >
-            CP
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "18px 16px",
+          borderBottom: "1.5px solid var(--surface0)",
+        }}>
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "linear-gradient(135deg, var(--blue), var(--mauve))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            boxShadow: "0 4px 12px color-mix(in srgb, var(--blue) 30%, transparent)",
+          }}>
+            <Zap size={18} color="#11111b" strokeWidth={2.5} />
           </div>
           <div>
-            <div className="font-semibold text-sm" style={{ color: "var(--text)" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", letterSpacing: "-0.01em" }}>
               CrossPost
             </div>
-            <div className="text-xs" style={{ color: "var(--overlay0)" }}>
-              Desktop
+            <div style={{ fontSize: 11, color: "var(--overlay0)", marginTop: 1 }}>
+              Desktop v0.1
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav style={{ display: "flex", flexDirection: "column", padding: "12px 10px", flex: 1, gap: 4 }}>
+        <nav style={{ display: "flex", flexDirection: "column", padding: "10px 10px", flex: 1, gap: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "var(--overlay0)", textTransform: "uppercase", padding: "8px 8px 6px" }}>
+            Navigation
+          </div>
           {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
-              className="flex items-center gap-3 rounded-lg text-sm transition-all"
-              style={({ isActive }) => ({
-                background: isActive ? "var(--surface0)" : "transparent",
-                color: isActive ? "var(--text)" : "var(--subtext0)",
-                padding: "10px 12px",
-                fontWeight: isActive ? 600 : 400,
-                borderRadius: 8,
-              })}
+              className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
             >
               <Icon size={16} />
               {label}
@@ -96,38 +101,40 @@ export default function Layout() {
         </nav>
 
         {/* Connected accounts */}
-        {connectedAccounts.length > 0 && (
-          <div
-            className="p-3 border-t"
-            style={{ borderColor: "var(--surface0)" }}
-          >
-            <div
-              className="text-xs font-medium mb-2 px-1"
-              style={{ color: "var(--overlay0)" }}
-            >
-              VERBUNDENE KONTEN
+        {connected.length > 0 && (
+          <div style={{ padding: "12px 10px", borderTop: "1.5px solid var(--surface0)" }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "var(--overlay0)", textTransform: "uppercase", padding: "0 6px 8px" }}>
+              Verbundene Konten
             </div>
-            <div className="flex flex-col gap-1">
-              {connectedAccounts.map((account) => {
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {connected.map((account) => {
                 const Icon = platformIcons[account.platform] || Circle;
                 const color = platformColors[account.platform] || "var(--text)";
                 return (
-                  <div
-                    key={account.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                    style={{ background: "var(--surface0)" }}
-                  >
-                    <Icon size={14} style={{ color }} />
-                    <span
-                      className="text-xs truncate flex-1"
-                      style={{ color: "var(--subtext1)" }}
-                    >
+                  <div key={account.id} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 8px",
+                    borderRadius: 8,
+                    background: "var(--surface0)",
+                  }}>
+                    <div style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      background: color + "22",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      <Icon size={13} style={{ color }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: "var(--subtext1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {account.display_name}
                     </span>
-                    <div
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: "var(--green)" }}
-                    />
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
                   </div>
                 );
               })}
@@ -136,14 +143,11 @@ export default function Layout() {
         )}
 
         {/* License */}
-        <div
-          className="p-3 border-t"
-          style={{ borderColor: "var(--surface0)" }}
-        >
+        <div style={{ padding: "8px 10px", borderTop: "1.5px solid var(--surface0)" }}>
           <NavLink
             to="/license"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all hover:opacity-80"
-            style={{ color: "var(--overlay0)" }}
+            className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+            style={{ fontSize: 12, color: "var(--overlay0)" }}
           >
             <Key size={14} />
             Lizenz
@@ -152,7 +156,7 @@ export default function Layout() {
       </aside>
 
       {/* ── Main ── */}
-      <main style={{ flex: 1, overflow: "hidden", background: "var(--base)", height: "100%" }}>
+      <main style={{ flex: 1, overflow: "hidden", background: "var(--base)", height: "100%", display: "flex", flexDirection: "column" }}>
         <Outlet />
       </main>
     </div>

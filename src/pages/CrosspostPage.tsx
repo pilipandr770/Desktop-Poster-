@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Repeat, Wand2 } from "lucide-react";
+import { Repeat, Wand2 } from "lucide-react";
 import MirrorPost from "../components/Crosspost/MirrorPost";
 import AICreatePost from "../components/Crosspost/AICreatePost";
 
@@ -9,54 +9,57 @@ export default function CrosspostPage() {
   const [mode, setMode] = useState<Mode>("mirror");
 
   return (
-    <div className="flex flex-col h-full">
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-        style={{ borderColor: "var(--surface0)" }}
-      >
+      <div className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 className="text-lg font-semibold" style={{ color: "var(--text)" }}>
-            Crossposting
-          </h1>
-          <p className="text-sm" style={{ color: "var(--overlay0)" }}>
-            Inhalte auf allen Plattformen gleichzeitig veröffentlichen
-          </p>
+          <h1>Crossposting</h1>
+          <p>Inhalte auf allen Plattformen gleichzeitig veröffentlichen</p>
         </div>
 
         {/* Mode switcher */}
-        <div
-          className="flex rounded-lg p-1"
-          style={{ background: "var(--surface0)" }}
-        >
-          <button
-            onClick={() => setMode("mirror")}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all"
-            style={{
-              background: mode === "mirror" ? "var(--base)" : "transparent",
-              color: mode === "mirror" ? "var(--text)" : "var(--overlay0)",
-            }}
-          >
-            <Repeat size={15} />
-            Spiegeln
-          </button>
-          <button
-            onClick={() => setMode("ai")}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all"
-            style={{
-              background: mode === "ai" ? "var(--base)" : "transparent",
-              color: mode === "ai" ? "var(--text)" : "var(--overlay0)",
-            }}
-          >
-            <Wand2 size={15} />
-            KI erstellen
-          </button>
+        <div style={{
+          display: "flex",
+          background: "var(--surface0)",
+          borderRadius: 10,
+          padding: 3,
+          gap: 2,
+        }}>
+          {([
+            { id: "mirror", icon: Repeat,  label: "Spiegeln"    },
+            { id: "ai",     icon: Wand2,   label: "KI erstellen" },
+          ] as const).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setMode(id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "8px 16px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: mode === id ? 600 : 400,
+                background: mode === id ? "var(--base)" : "transparent",
+                color: mode === id ? "var(--text)" : "var(--overlay1)",
+                transition: "all 0.15s",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: mode === id ? "0 1px 4px rgba(0,0,0,0.25)" : "none",
+              }}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
-        {mode === "mirror" ? <MirrorPost /> : <AICreatePost />}
+      <div className="page-body">
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          {mode === "mirror" ? <MirrorPost /> : <AICreatePost />}
+        </div>
       </div>
     </div>
   );

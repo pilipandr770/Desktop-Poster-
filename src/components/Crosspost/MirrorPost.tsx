@@ -1,200 +1,187 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { Repeat, Upload, Send, Loader, Image, X } from "lucide-react";
-import { useAccountsStore, type Platform } from "../../store/accounts";
+import { Send, Loader, Image, X, CheckCircle, AlertCircle } from "lucide-react";
+import { useAccountsStore } from "../../store/accounts";
 import toast from "react-hot-toast";
 
-const PLATFORM_LABELS: Record<string, string> = {
+const LABELS: Record<string, string> = {
   instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp",
   linkedin: "LinkedIn", twitter: "Twitter/X", telegram: "Telegram", email: "E-Mail",
 };
 
-const PLATFORM_COLORS: Record<string, string> = {
+const COLORS: Record<string, string> = {
   instagram: "#E1306C", facebook: "#1877F2", whatsapp: "#25D366",
-  linkedin: "#0A66C2", twitter: "#1DA1F2", telegram: "#2AABEE", email: "#EA4335",
+  linkedin: "#0A66C2",  twitter:  "#1DA1F2", telegram: "#2AABEE", email: "#EA4335",
 };
+
+const LIMITS: Record<string, number> = { twitter: 280, instagram: 2200, linkedin: 3000 };
+
+type PostStatus = "idle" | "posting" | "done" | "error";
 
 export default function MirrorPost() {
   const accounts = useAccountsStore((s) => s.accounts);
   const connected = accounts.filter((a) => a.status === "connected");
 
-  const [sourceAccount, setSourceAccount] = useState("");
-  const [targetAccounts, setTargetAccounts] = useState<string[]>([]);
-  const [content, setContent] = useState("");
+  const [targets, setTargets]     = useState<string[]>([]);
+  const [content, setContent]     = useState("");
   const [mediaPath, setMediaPath] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [results, setResults] = useState<Record<string, "idle" | "posting" | "done" | "error">>({});
+  const [posting, setPosting]     = useState(false);
+  const [results, setResults]     = useState<Record<string, PostStatus>>({});
 
-  const toggleTarget = (id: string) => {
-    setTargetAccounts((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
-    );
-  };
+  const toggle = (id: string) =>
+    setTargets((p) => p.includes(id) ? p.filter((a) => a !== id) : [...p, id]);
 
   const handlePost = async () => {
-    if (!content.trim() || targetAccounts.length === 0) return;
-
+    if (!content.trim() || targets.length === 0) return;
     setPosting(true);
-    const newResults: typeof results = {};
-    targetAccounts.forEach((id) => (newResults[id] = "posting"));
-    setResults(newResults);
+    setResults(Object.fromEntries(targets.map((id) => [id, "posting"])));
 
-    for (const accountId of targetAccounts) {
+    for (const accountId of targets) {
       try {
-        await invoke("post_content", {
-          accountId,
-          content,
-          mediaPath: mediaPath || null,
-        });
-        setResults((prev) => ({ ...prev, [accountId]: "done" }));
-        const acc = accounts.find((a) => a.id === accountId);
-        toast.success(`✓ ${acc?.display_name}`);
+        await invoke("post_content", { accountId, content, mediaPath: mediaPath || null });
+        setResults((p) => ({ ...p, [accountId]: "done" }));
+        toast.success(`✓ ${accounts.find((a) => a.id === accountId)?.display_name}`);
       } catch (e: any) {
-        setResults((prev) => ({ ...prev, [accountId]: "error" }));
-        const acc = accounts.find((a) => a.id === accountId);
-        toast.error(`✗ ${acc?.display_name}: ${e}`);
+        setResults((p) => ({ ...p, [accountId]: "error" }));
+        toast.error(`✗ ${accounts.find((a) => a.id === accountId)?.display_name}: ${e}`);
       }
     }
-
     setPosting(false);
   };
 
+  const openMedia = async () => {
+    try {
+      const f = await openDialog({ multiple: false, filters: [{ name: "Medien", extensions: ["jpg","jpeg","png","gif","webp","mp4","mov"] }] });
+      if (f) setMediaPath(f as string);
+    } catch { toast.error("Datei-Dialog fehlgeschlagen"); }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      {/* Content input */}
-      <div
-        className="rounded-xl p-5"
-        style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}
-      >
-        <label className="block text-sm font-medium mb-2" style={{ color: "var(--subtext1)" }}>
-          Inhalt
-        </label>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Text input */}
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <textarea
-          rows={5}
+          rows={6}
           placeholder="Was möchten Sie veröffentlichen?"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           style={{
-            background: "var(--surface0)",
-            border: "1px solid var(--surface1)",
-            borderRadius: 8,
-            padding: "10px 14px",
-            color: "var(--text)",
-            width: "100%",
-            resize: "vertical",
+            border: "none",
+            borderRadius: 0,
+            background: "transparent",
+            padding: "16px 18px",
+            fontSize: 14,
+            resize: "none",
+            minHeight: 140,
           }}
         />
 
-        {/* Character counters */}
-        <div className="flex gap-4 mt-2">
-          {["twitter", "instagram", "linkedin"].map((p) => {
-            const limits: Record<string, number> = { twitter: 280, instagram: 2200, linkedin: 3000 };
-            const limit = limits[p];
-            const over = content.length > limit;
-            return (
-              <span
-                key={p}
-                className="text-xs"
-                style={{ color: over ? "var(--red)" : "var(--overlay0)" }}
-              >
-                {PLATFORM_LABELS[p]}: {content.length}/{limit}
-              </span>
-            );
-          })}
-        </div>
+        {/* Footer bar */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          borderTop: "1.5px solid var(--surface0)",
+          background: "var(--base)",
+          gap: 12,
+          flexWrap: "wrap",
+        }}>
+          {/* Character counters */}
+          <div style={{ display: "flex", gap: 14 }}>
+            {Object.entries(LIMITS).map(([p, limit]) => {
+              const over = content.length > limit;
+              return (
+                <span key={p} style={{ fontSize: 12, color: over ? "var(--red)" : "var(--overlay0)" }}>
+                  {LABELS[p]}: <strong style={{ color: over ? "var(--red)" : "var(--subtext0)" }}>{content.length}</strong>/{limit}
+                </span>
+              );
+            })}
+          </div>
 
-        {/* Media */}
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
-            style={{ background: "var(--surface0)", color: "var(--subtext0)" }}
-            onClick={async () => {
-              try {
-                const selected = await openDialog({
-                  multiple: false,
-                  filters: [
-                    {
-                      name: "Medien",
-                      extensions: ["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi"],
-                    },
-                  ],
-                });
-                if (selected) {
-                  setMediaPath(selected as string);
-                }
-              } catch (e) {
-                toast.error("Datei-Dialog fehlgeschlagen");
-              }
-            }}
-          >
-            <Image size={13} />
-            Bild/Video hinzufügen
-          </button>
-          {mediaPath && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs" style={{ color: "var(--green)" }}>
-                ✓ {(mediaPath as string).split(/[/\\]/).pop()}
-              </span>
-              <button
-                onClick={() => setMediaPath("")}
-                className="p-0.5 rounded"
-                style={{ color: "var(--overlay0)" }}
-              >
-                <X size={11} />
-              </button>
-            </div>
-          )}
+          {/* Media button */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {mediaPath && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6, background: "var(--green)15", border: "1px solid var(--green)30" }}>
+                <span style={{ fontSize: 12, color: "var(--green)" }}>
+                  ✓ {mediaPath.split(/[/\\]/).pop()}
+                </span>
+                <button onClick={() => setMediaPath("")} style={{ color: "var(--overlay0)", display: "flex" }}>
+                  <X size={11} />
+                </button>
+              </div>
+            )}
+            <button onClick={openMedia} className="btn btn-sm btn-ghost">
+              <Image size={13} />
+              Bild / Video
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Target selection */}
-      <div
-        className="rounded-xl p-5"
-        style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}
-      >
-        <label className="block text-sm font-medium mb-3" style={{ color: "var(--subtext1)" }}>
-          Veröffentlichen auf
-        </label>
+      {/* Target accounts */}
+      <div>
+        <div className="section-label">Veröffentlichen auf</div>
 
         {connected.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--overlay0)" }}>
-            Keine verbundenen Konten. Bitte fügen Sie Konten unter "Konten" hinzu.
-          </p>
+          <div className="card empty-state" style={{ padding: "32px 20px" }}>
+            <p>Keine verbundenen Konten</p>
+            <span>Bitte fügen Sie Konten unter "Konten" hinzu.</span>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
             {connected.map((account) => {
-              const isSelected = targetAccounts.includes(account.id);
-              const color = PLATFORM_COLORS[account.platform] || "var(--blue)";
-              const status = results[account.id];
+              const selected = targets.includes(account.id);
+              const color    = COLORS[account.platform] || "var(--blue)";
+              const status   = results[account.id];
 
               return (
                 <button
                   key={account.id}
-                  onClick={() => !posting && toggleTarget(account.id)}
+                  onClick={() => !posting && toggle(account.id)}
                   disabled={posting}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all"
                   style={{
-                    background: isSelected ? color + "20" : "var(--surface0)",
-                    border: `1px solid ${isSelected ? color : "var(--surface1)"}`,
-                    opacity: posting ? 0.8 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "11px 14px",
+                    borderRadius: 10,
+                    textAlign: "left",
+                    background: selected ? color + "18" : "var(--mantle)",
+                    border: `1.5px solid ${selected ? color : "var(--surface0)"}`,
+                    cursor: posting ? "default" : "pointer",
+                    transition: "all 0.15s",
+                    boxShadow: selected ? `0 0 0 2px ${color}22` : "none",
                   }}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: "var(--text)" }}>
-                      {account.display_name}
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--overlay0)" }}>
-                      {PLATFORM_LABELS[account.platform]}
-                    </p>
+                  <div style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 8,
+                    background: color + "22",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color,
+                  }}>
+                    {LABELS[account.platform]?.[0] ?? "?"}
                   </div>
-                  {status === "posting" && <Loader size={13} className="animate-spin shrink-0" style={{ color: "var(--blue)" }} />}
-                  {status === "done" && <span className="text-xs shrink-0" style={{ color: "var(--green)" }}>✓</span>}
-                  {status === "error" && <span className="text-xs shrink-0" style={{ color: "var(--red)" }}>✗</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {account.display_name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--overlay1)" }}>
+                      {LABELS[account.platform]}
+                    </div>
+                  </div>
+                  {status === "posting" && <Loader size={14} className="animate-spin" style={{ color: "var(--blue)", flexShrink: 0 }} />}
+                  {status === "done"    && <CheckCircle size={14} style={{ color: "var(--green)", flexShrink: 0 }} />}
+                  {status === "error"   && <AlertCircle size={14} style={{ color: "var(--red)",   flexShrink: 0 }} />}
                 </button>
               );
             })}
@@ -205,18 +192,16 @@ export default function MirrorPost() {
       {/* Post button */}
       <button
         onClick={handlePost}
-        disabled={!content.trim() || targetAccounts.length === 0 || posting}
-        className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold disabled:opacity-40 transition-all"
-        style={{ background: "var(--blue)", color: "var(--crust)" }}
+        disabled={!content.trim() || targets.length === 0 || posting}
+        className="btn btn-primary btn-lg"
+        style={{ alignSelf: "flex-start" }}
       >
-        {posting ? (
-          <Loader size={16} className="animate-spin" />
-        ) : (
-          <Send size={16} />
-        )}
+        {posting ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
         {posting
-          ? `Veröffentliche auf ${targetAccounts.length} Plattformen...`
-          : `Auf ${targetAccounts.length} Plattformen veröffentlichen`}
+          ? `Veröffentliche auf ${targets.length} Plattformen…`
+          : targets.length === 0
+            ? "Plattformen auswählen"
+            : `Auf ${targets.length} Plattform${targets.length > 1 ? "en" : ""} veröffentlichen`}
       </button>
     </div>
   );
