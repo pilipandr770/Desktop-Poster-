@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Repeat, Upload, Send, Loader, Image } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { Repeat, Upload, Send, Loader, Image, X } from "lucide-react";
 import { useAccountsStore, type Platform } from "../../store/accounts";
 import toast from "react-hot-toast";
 
@@ -104,22 +105,45 @@ export default function MirrorPost() {
         </div>
 
         {/* Media */}
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <button
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
             style={{ background: "var(--surface0)", color: "var(--subtext0)" }}
             onClick={async () => {
-              // TODO: Tauri file dialog
-              toast("Datei-Dialog wird implementiert");
+              try {
+                const selected = await openDialog({
+                  multiple: false,
+                  filters: [
+                    {
+                      name: "Medien",
+                      extensions: ["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi"],
+                    },
+                  ],
+                });
+                if (selected) {
+                  setMediaPath(selected as string);
+                }
+              } catch (e) {
+                toast.error("Datei-Dialog fehlgeschlagen");
+              }
             }}
           >
             <Image size={13} />
             Bild/Video hinzufügen
           </button>
           {mediaPath && (
-            <span className="text-xs" style={{ color: "var(--green)" }}>
-              ✓ {mediaPath.split("/").pop()}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs" style={{ color: "var(--green)" }}>
+                ✓ {(mediaPath as string).split(/[/\\]/).pop()}
+              </span>
+              <button
+                onClick={() => setMediaPath("")}
+                className="p-0.5 rounded"
+                style={{ color: "var(--overlay0)" }}
+              >
+                <X size={11} />
+              </button>
+            </div>
           )}
         </div>
       </div>

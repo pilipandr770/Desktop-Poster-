@@ -108,4 +108,6 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('auto_reply_enabled', '0'),
     ('notifications_enabled', '1'),
     ('theme', 'dark'),
-    ('start_minimized', '0');
+    ('start_minimized', '0'),
+    ('sync_interval', '15'),
+    ('last_message_sync', '');

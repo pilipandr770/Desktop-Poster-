@@ -1,0 +1,126 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ── Build Python sidecar → sidecar.exe ──────────────────────────────────
+      - name: Install Python dependencies + PyInstaller
+        working-directory: python-sidecar
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+          pyinstaller sidecar.spec
+
+      # ── Build Node WhatsApp sidecar ──────────────────────────────────────────
+      - name: Install WhatsApp sidecar dependencies
+        working-directory: whatsapp-sidecar
+        run: npm install
+
+      # ── Build Tauri app ──────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri (NSIS + MSI)
+        run: npm run tauri build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: set these secrets to sign the installer (removes SmartScreen warning)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+
+      # ── Collect artifacts ────────────────────────────────────────────────────
+      - name: Find installers
+        id: find
+        shell: pwsh
+        run: |
+          $nsis = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          $msi  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/msi"  -Filter "*.msi" | Select-Object -First 1
+          echo "nsis=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
+          echo "msi=$($msi.FullName)"   >> $env:GITHUB_OUTPUT
+
+      # ── Create GitHub Release ────────────────────────────────────────────────
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CrossPost Desktop ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          body: |
+            ## CrossPost Desktop ${{ github.ref_name }}
+
+            ### Installation (Windows)
+            1. Laden Sie `CrossPost-Desktop_${{ github.ref_name }}_x64-setup.exe` herunter
+            2. Führen Sie die Datei aus (kein Adminrecht nötig)
+            3. CrossPost Desktop starten und Lizenz eingeben
+
+            ### Systemanforderungen
+            - Windows 10 / 11 (64-Bit)
+            - Internetverbindung für erste Einrichtung
+
+            ### Änderungen
+            Vollständige Changelog: [CHANGELOG.md](CHANGELOG.md)
+          files: |
+            ${{ steps.find.outputs.nsis }}
+            ${{ steps.find.outputs.msi }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Update landing page download URL ────────────────────────────────────
+      - name: Update landing page download URL
+        shell: pwsh
+        run: |
+          # Get the exact .exe filename that was built
+          $exe = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          $tag = "${{ github.ref_name }}"
+          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$($exe.Name)"
+
+          Write-Host "Updating download URL to: $newUrl"
+
+          # Replace all download hrefs in index.html
+          $html = Get-Content "docs/index.html" -Raw -Encoding UTF8
+          $html = $html -replace 'href="https://github\.com/pilipandr770/Desktop-Poster-/releases[^"]*-setup\.exe"', "href=`"$newUrl`""
+          [System.IO.File]::WriteAllText("docs/index.html", $html, [System.Text.UTF8Encoding]::new($false))
+
+          # Commit and push to master so pages.yml redeploys the landing
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --staged --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: update landing download URL to $tag"
+            git push origin HEAD:master
+          }

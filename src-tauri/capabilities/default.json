@@ -1,0 +1,17 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for CrossPost Desktop",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-spawn",
+    "shell:allow-execute",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "notification:allow-notify",
+    "http:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
+  ]
+}

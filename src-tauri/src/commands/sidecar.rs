@@ -7,39 +7,63 @@ use tauri::State;
 /// Spawn a fresh Python process, send one JSON command, read one JSON response.
 /// Each call is stateless — Python reads one line, responds, then exits (stdin EOF).
 pub fn call_python(command: Value) -> Result<Value, String> {
-    let python_bin = if cfg!(windows) { "python" } else { "python3" };
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
 
-    // Locate sidecar: dev (project root) vs production (next to exe)
-    let sidecar_path = {
-        let exe_dir = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    // In production: sidecar.exe (compiled by PyInstaller) lives next to the app exe
+    let bundled_exe = exe_dir.as_ref().and_then(|d| {
+        let p = if cfg!(windows) {
+            d.join("sidecar.exe")
+        } else {
+            d.join("sidecar")
+        };
+        if p.exists() { Some(p) } else { None }
+    });
 
-        let candidates = [
-            // dev: running from crosspost-desktop/
+    let mut child = if let Some(ref exe) = bundled_exe {
+        // Production path: compiled sidecar binary, no Python needed
+        Command::new(exe)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| format!("Sidecar konnte nicht gestartet werden: {}", e))?
+    } else {
+        // Dev path: run main.py via Python interpreter
+        let script_candidates = [
             std::path::PathBuf::from("python-sidecar/main.py"),
-            // dev: running from src-tauri/
             std::path::PathBuf::from("../python-sidecar/main.py"),
-            // production: bundled next to exe
             exe_dir
                 .as_ref()
                 .map(|d| d.join("python-sidecar/main.py"))
                 .unwrap_or_default(),
         ];
-
-        candidates
+        let sidecar_path = script_candidates
             .into_iter()
             .find(|p| p.exists())
-            .ok_or_else(|| "Python-Sidecar nicht gefunden".to_string())?
-    };
+            .ok_or_else(|| "Python-Sidecar nicht gefunden".to_string())?;
 
-    let mut child = Command::new(python_bin)
-        .arg(&sidecar_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Python konnte nicht gestartet werden: {}", e))?;
+        let sidecar_dir = sidecar_path.parent().unwrap_or(std::path::Path::new("."));
+        let venv_python_candidates = [
+            sidecar_dir.join(".venv/Scripts/python.exe"),
+            sidecar_dir.join(".venv/bin/python"),
+        ];
+        let python_bin: std::path::PathBuf = venv_python_candidates
+            .into_iter()
+            .find(|p| p.exists())
+            .unwrap_or_else(|| {
+                if cfg!(windows) { "python".into() } else { "python3".into() }
+            });
+
+        Command::new(&python_bin)
+            .arg(&sidecar_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| format!("Python konnte nicht gestartet werden: {}", e))?
+    };
 
     // Write command and close stdin → Python reads until EOF, processes, exits
     {

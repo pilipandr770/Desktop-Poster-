@@ -1,11 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
-
 mod commands;
 mod db;
 mod license;
+mod scheduler;
 
 fn main() {
     tauri::Builder::default()
@@ -14,10 +13,15 @@ fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_stronghold::Builder::new(|password| {
-                let config = argon2::Config::default();
-                let salt = b"crosspost-desktop-salt-v1";
-                argon2::hash_raw(password.as_ref(), salt, &config)
-                    .expect("Failed to derive stronghold key")
+                // argon2 v0.4 (RustCrypto) API
+                use argon2::Argon2;
+                // Salt must be exactly 16 bytes
+                let salt = b"crosspost-salt-1";
+                let mut key = vec![0u8; 32];
+                Argon2::default()
+                    .hash_password_into(password.as_ref(), salt, &mut key)
+                    .expect("Failed to derive stronghold key");
+                key
             })
             .build(),
         )
@@ -27,13 +31,17 @@ fn main() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(commands::whatsapp::WhatsAppProcess(std::sync::Mutex::new(None)))
         .setup(|app| {
             let app_handle = app.handle().clone();
+            let scheduler_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 db::initialize(&app_handle)
                     .await
                     .expect("Failed to initialize database");
             });
+            scheduler::start(scheduler_handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -63,8 +71,12 @@ fn main() {
             commands::sidecar::stop_python_sidecar,
             commands::sidecar::send_to_sidecar,
             commands::sidecar::generate_ai_content,
-            // Meta OAuth
-            commands::oauth::start_meta_oauth,
+            // WhatsApp
+            commands::whatsapp::start_whatsapp_sidecar,
+            commands::whatsapp::stop_whatsapp_sidecar,
+            commands::whatsapp::whatsapp_call,
+            commands::whatsapp::check_nodejs,
+            commands::whatsapp::install_nodejs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,3 +5,4 @@ pub mod oauth;
 pub mod posts;
 pub mod settings;
 pub mod sidecar;
+pub mod whatsapp;

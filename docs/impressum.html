@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impressum — CrossPost Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --bg2: #161b27; --bg3: #1e2435;
+      --border: #2a3245; --text: #e2e8f0; --muted: #8892a4;
+      --accent: #6366f1; --radius: 14px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 64px;
+      background: rgba(15,17,23,0.95); border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-weight: 800; font-size: 18px; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+    .nav-logo span { background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .nav-back:hover { color: var(--text); }
+    .container { max-width: 760px; margin: 0 auto; padding: 60px 24px 100px; }
+    h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    h2 { font-size: 1rem; font-weight: 700; color: var(--text); margin: 32px 0 10px; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; color: #818cf8; }
+    p { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+    a { color: #818cf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 16px; }
+    footer { border-top: 1px solid var(--border); padding: 24px 40px; text-align: center; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); text-decoration: none; margin: 0 12px; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="url(#g)"/>
+      <path d="M8 14h4m4 0h4M14 8v4m0 4v4" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+    </svg>
+    <span>CrossPost</span> Desktop
+  </a>
+  <a href="index.html" class="nav-back">← Zurück zur Startseite</a>
+</nav>
+
+<div class="container">
+  <h1>Impressum</h1>
+  <p class="subtitle">Angaben gemäß § 5 TMG</p>
+
+  <div class="card">
+    <h2>Anbieter</h2>
+    <p><strong style="color:var(--text)">Andrii Pylypchuk</strong></p>
+    <p>Bergmannweg 16<br/>65934 Frankfurt am Main<br/>Deutschland</p>
+  </div>
+
+  <div class="card">
+    <h2>Kontakt</h2>
+    <p>E-Mail: <a href="mailto:info@andrii-it.de">info@andrii-it.de</a></p>
+    <p>Telefon: <a href="tel:+4916095030120">+49 160 95030120</a></p>
+    <p>Web: <a href="https://www.andrii-it.de" target="_blank" rel="noopener">www.andrii-it.de</a></p>
+  </div>
+
+  <div class="card">
+    <h2>Umsatzsteuer</h2>
+    <p>Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG:</p>
+    <p><strong style="color:var(--text)">DE456902445</strong></p>
+  </div>
+
+  <div class="card">
+    <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+    <p>Andrii Pylypchuk<br/>Bergmannweg 16<br/>65934 Frankfurt am Main</p>
+  </div>
+
+  <div class="card">
+    <h2>Streitschlichtung</h2>
+    <p>Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+      <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>
+    </p>
+    <p>Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+  </div>
+
+  <div class="card">
+    <h2>Haftung für Inhalte</h2>
+    <p>Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.</p>
+  </div>
+</div>
+
+<footer>
+  <div style="margin-bottom:10px">
+    <a href="index.html">Startseite</a>
+    <a href="impressum.html">Impressum</a>
+    <a href="datenschutz.html">Datenschutz</a>
+    <a href="agb.html">AGB</a>
+  </div>
+  © 2024 Andrii Pylypchuk · Frankfurt am Main
+</footer>
+
+</body>
+</html>

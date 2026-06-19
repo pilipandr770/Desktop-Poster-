@@ -9,12 +9,23 @@ import sys
 import json
 import asyncio
 import logging
+import pathlib
 import random
 import time
 from typing import Any
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("crosspost-sidecar")
+
+# ─── Session cache helpers ────────────────────────────────────────────────────
+
+def _sessions_dir() -> pathlib.Path:
+    d = pathlib.Path.home() / ".crosspost" / "sessions"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+def _ig_cache(username: str) -> pathlib.Path:
+    return _sessions_dir() / f"ig_{username}.json"
 
 
 # ─── Human-like delays ────────────────────────────────────────────────────────
@@ -35,50 +46,55 @@ def typing_delay(text: str):
 
 # ─── Platform handlers ────────────────────────────────────────────────────────
 
-class InstagramGraphHandler:
-    """Instagram + Facebook через offiziellen Meta Graph API (OAuth token)"""
+class InstagramHandler:
+    """Instagram + Facebook через Instagrapi"""
 
-    GRAPH = "https://graph.facebook.com/v19.0"
+    def _client(self, session_or_creds: dict):
+        """Return authenticated Instagrapi Client.
 
-    def _get(self, path: str, token: str, params: dict = None) -> dict:
-        import urllib.request, urllib.parse
-        p = {"access_token": token}
-        if params:
-            p.update(params)
-        url = f"{self.GRAPH}/{path}?{urllib.parse.urlencode(p)}"
-        with urllib.request.urlopen(url, timeout=15) as r:
-            return json.loads(r.read())
+        Accepts either raw credentials {username, password} or saved Instagrapi settings.
+        Username/password path uses a file cache to avoid full re-login on every call.
+        """
+        from instagrapi import Client
+        cl = Client()
 
-    def _post_json(self, path: str, token: str, data: dict) -> dict:
-        import urllib.request, urllib.parse
-        data["access_token"] = token
-        encoded = urllib.parse.urlencode(data).encode()
-        url = f"{self.GRAPH}/{path}"
-        req = urllib.request.Request(url, data=encoded, method="POST")
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.loads(r.read())
+        username = session_or_creds.get("username")
+        password = session_or_creds.get("password")
+
+        if username and password:
+            cache = _ig_cache(username)
+            if cache.exists():
+                try:
+                    cl.load_settings(cache)
+                    cl.login(username, password)  # refreshes token silently
+                    cl.dump_settings(cache)
+                    return cl
+                except Exception:
+                    cache.unlink(missing_ok=True)
+            cl.login(username, password)
+            cl.dump_settings(cache)
+        else:
+            cl.set_settings(session_or_creds)
+        return cl
 
     def connect(self, credentials: dict) -> dict:
         """credentials = {"access_token": "...", "user_id": "...", "platform": "..."}"""
         try:
-            token = credentials.get("access_token", "")
-            if not token:
-                return {"success": False, "error": "Kein Access Token"}
-            data = self._get("me", token, {"fields": "id,name"})
-            if "error" in data:
-                return {"success": False, "error": data["error"].get("message", "API Fehler")}
+            cl = self._client(credentials)
+            info = cl.account_info()
+            session_data = cl.get_settings()
             return {
                 "success": True,
-                "profile": {"name": data.get("name", ""), "id": data.get("id", "")}
+                "session": session_data,
+                "profile": {"name": info.full_name, "username": info.username},
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def get_messages(self, credentials: dict, limit: int = 20) -> dict:
-        """Fetch DMs via Graph API (Instagram Messaging or Facebook Messenger)"""
+    def get_messages(self, session: dict, limit: int = 20) -> dict:
         try:
-            token = credentials.get("access_token", "")
-            platform = credentials.get("platform", "instagram")
+            cl = self._client(session)
+            threads = cl.direct_threads(amount=limit)
             messages = []
 
             if platform == "instagram":
@@ -123,8 +139,7 @@ class InstagramGraphHandler:
 
     def send_message(self, credentials: dict, user_id: str, text: str) -> dict:
         try:
-            token = credentials.get("access_token", "")
-            ig_user_id = credentials.get("user_id", "")
+            cl = self._client(session)
             human_delay()
             typing_delay(text)
             result = self._post_json(f"{ig_user_id}/messages", token, {
@@ -137,10 +152,9 @@ class InstagramGraphHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def post_content(self, credentials: dict, content: str, media_path: str = None) -> dict:
+    def post_content(self, session: dict, content: str, media_path: str = None) -> dict:
         try:
-            token = credentials.get("access_token", "")
-            platform = credentials.get("platform", "instagram")
+            cl = self._client(session)
             human_delay(3.0, 10.0)
 
             if platform == "instagram":
@@ -295,40 +309,80 @@ class TwitterHandler:
 
 class TelegramHandler:
     """Telegram через Telethon"""
-    
+
+    def _session_path(self, phone: str) -> str:
+        import os
+        os.makedirs("sessions", exist_ok=True)
+        # Sanitize phone for filename
+        safe = "".join(c for c in phone if c.isdigit() or c == "+")
+        return f"sessions/telegram_{safe}"
+
     def connect(self, credentials: dict) -> dict:
-        try:
+        import os
+        session = self._session_path(credentials["phone"])
+        session_file = session + ".session"
+
+        def _do_connect():
             from telethon.sync import TelegramClient
-            from telethon import functions
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             if not client.is_user_authorized():
-                client.send_code_request(credentials["phone"])
-                return {"success": False, "error": "code_required", "phone": credentials["phone"]}
+                sent = client.send_code_request(credentials["phone"])
+                client.disconnect()
+                return {
+                    "success": False,
+                    "error": "code_required",
+                    "phone": credentials["phone"],
+                    "phone_code_hash": sent.phone_code_hash,
+                }
             me = client.get_me()
             client.disconnect()
             return {
                 "success": True,
                 "profile": {
                     "name": f"{me.first_name} {me.last_name or ''}".strip(),
-                    "username": me.username or ""
-                }
+                    "username": me.username or "",
+                },
+            }
+
+        try:
+            return _do_connect()
+        except Exception as e:
+            err = str(e)
+            # If session DB is corrupted/outdated, delete and retry once
+            if os.path.exists(session_file) and ("database" in err.lower() or "sql" in err.lower() or "upgrade" in err.lower()):
+                try:
+                    os.remove(session_file)
+                    return _do_connect()
+                except Exception as e2:
+                    return {"success": False, "error": str(e2)}
+            return {"success": False, "error": err}
+
+    def verify_code(self, credentials: dict, code: str, phone_code_hash: str) -> dict:
+        """Step 2: confirm OTP code and save session."""
+        try:
+            from telethon.sync import TelegramClient
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client.connect()
+            client.sign_in(credentials["phone"], code, phone_code_hash=phone_code_hash)
+            me = client.get_me()
+            client.disconnect()
+            return {
+                "success": True,
+                "profile": {
+                    "name": f"{me.first_name} {me.last_name or ''}".strip(),
+                    "username": me.username or "",
+                },
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
             from telethon.sync import TelegramClient
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             messages = []
             for dialog in client.iter_dialogs(limit=10):
@@ -346,15 +400,12 @@ class TelegramHandler:
             return {"success": True, "messages": messages}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     def post_content(self, credentials: dict, channel: str, content: str) -> dict:
         try:
             from telethon.sync import TelegramClient
-            client = TelegramClient(
-                f"sessions/telegram_{credentials['phone']}",
-                credentials["api_id"],
-                credentials["api_hash"]
-            )
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
             human_delay(1.0, 4.0)
             client.send_message(channel, content)
@@ -498,9 +549,19 @@ class AIHandler:
 
 # ─── Message Router ────────────────────────────────────────────────────────────
 
+class WhatsAppHandler:
+    def connect(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp-Integration ist noch in Entwicklung. Bald verfügbar!"}
+    def post(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp noch nicht verfügbar."}
+    def fetch_messages(self, params: dict) -> dict:
+        return {"ok": False, "error": "WhatsApp noch nicht verfügbar."}
+
+
 handlers = {
-    "instagram": InstagramGraphHandler(),
-    "facebook": InstagramGraphHandler(),
+    "instagram": InstagramHandler(),
+    "facebook": InstagramHandler(),  # Instagrapi handles both
+    "whatsapp": WhatsAppHandler(),
     "linkedin": LinkedInHandler(),
     "twitter": TwitterHandler(),
     "telegram": TelegramHandler(),

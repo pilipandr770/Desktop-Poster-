@@ -14,9 +14,15 @@ __pycache__/
 *.pyo
 python-sidecar/__pycache__/
 python-sidecar/sessions/
+python-sidecar/dist/
+python-sidecar/build/
+python-sidecar/*.spec.bak
 *.egg-info/
 .venv/
 venv/
+
+# WhatsApp sidecar
+whatsapp-sidecar/node_modules/
 
 # OS
 .DS_Store
