@@ -6,6 +6,7 @@ import {
   Clock, Circle, RefreshCw, LogOut
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAccountsStore, type Platform } from "../store/accounts";
 import toast from "react-hot-toast";
 
@@ -622,17 +623,15 @@ export default function AccountsPage() {
                   {platform.helpLinks.length > 0 && (
                     <div className="flex flex-col gap-1.5">
                       {platform.helpLinks.map((link) => (
-                        <a
+                        <button
                           key={link.url}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          onClick={() => openUrl(link.url)}
                           className="flex items-center gap-2 text-xs hover:underline"
-                          style={{ color: "var(--blue)" }}
+                          style={{ color: "var(--blue)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
                         >
                           <ExternalLink size={11} />
                           {link.label}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -701,10 +700,10 @@ export default function AccountsPage() {
                   </p>
 
                   <div className="flex flex-col gap-1.5">
-                    <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 text-xs hover:underline" style={{ color: "var(--blue)" }}>
+                    <button onClick={() => openUrl("https://my.telegram.org/apps")}
+                      className="flex items-center gap-2 text-xs hover:underline" style={{ color: "var(--blue)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
                       <ExternalLink size={11} /> API ID &amp; Hash erstellen → my.telegram.org
-                    </a>
+                    </button>
                   </div>
 
                   {tgStep === "idle" && (

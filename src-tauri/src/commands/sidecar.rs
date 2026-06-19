@@ -79,28 +79,40 @@ pub fn call_python(command: Value) -> Result<Value, String> {
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let stderr_str = String::from_utf8_lossy(&output.stderr);
-    let first_line = stdout_str.lines().next().unwrap_or("").trim();
 
-    if first_line.is_empty() {
-        // Python crashed before printing — surface stderr for diagnosis
-        let err_detail = stderr_str
-            .lines()
-            // skip INFO-level logging lines
-            .filter(|l| !l.contains("INFO") && !l.contains("Human delay"))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        let msg = if err_detail.is_empty() {
-            "Sidecar gab keine Antwort (leerer stdout)".to_string()
-        } else {
-            // Take last 300 chars to avoid flooding toast
-            let trimmed = if err_detail.len() > 300 { &err_detail[err_detail.len() - 300..] } else { &err_detail };
-            format!("Sidecar-Fehler: {}", trimmed)
-        };
-        return Err(msg);
+    // Find first line that looks like JSON (starts with '{' or '[')
+    // Some Windows libs print garbage to stdout before our JSON
+    let json_line = stdout_str
+        .lines()
+        .map(|l| l.trim())
+        .find(|l| l.starts_with('{') || l.starts_with('['));
+
+    match json_line {
+        Some(line) => serde_json::from_str(line)
+            .map_err(|e| format!("JSON-Parse-Fehler: {}", e)),
+        None => {
+            // No JSON found — collect meaningful stderr lines
+            let err_detail: String = stderr_str
+                .lines()
+                .filter(|l| {
+                    !l.contains(":INFO:") && !l.contains("Human delay")
+                        && !l.trim().is_empty()
+                })
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let msg = if err_detail.is_empty() {
+                "Sidecar gab keine Antwort. Python-Interpreter prüfen.".to_string()
+            } else {
+                let trimmed = if err_detail.len() > 400 {
+                    &err_detail[err_detail.len() - 400..]
+                } else {
+                    &err_detail
+                };
+                format!("Sidecar-Fehler: {}", trimmed)
+            };
+            Err(msg)
+        }
     }
-
-    serde_json::from_str(first_line)
-        .map_err(|e| format!("Ungültige JSON-Antwort: {} — Zeile: {}", e, &first_line[..first_line.len().min(120)]))
 }
 
 // ── Tauri commands ──────────────────────────────────────────────────────────
