@@ -6,7 +6,8 @@ mod db;
 mod license;
 mod scheduler;
 
-fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::image::Image;
     use tauri::menu::{MenuBuilder, MenuItemBuilder};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
     use tauri::Manager;
@@ -23,8 +24,22 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .item(&quit)
         .build()?;
 
-    TrayIconBuilder::with_id("main")
-        .icon(app.default_window_icon().unwrap().clone())
+    // Load icon from file in dev mode; fall back to default window icon
+    let icon = {
+        let icon_path = app.path().resource_dir()
+            .ok()
+            .map(|d| d.join("icons/icon.png"))
+            .filter(|p| p.exists());
+
+        if let Some(path) = icon_path {
+            Image::from_path(&path).ok()
+        } else {
+            None
+        }
+    }
+    .or_else(|| app.default_window_icon().cloned());
+
+    let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("CrossPost Desktop")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -60,9 +75,13 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                     }
                 }
             }
-        })
-        .build(app)?;
+        });
 
+    if let Some(ico) = icon {
+        builder = builder.icon(ico);
+    }
+
+    builder.build(app)?;
     Ok(())
 }
 
@@ -96,7 +115,11 @@ fn main() {
         .manage(commands::whatsapp::WhatsAppProcess(std::sync::Mutex::new(None)))
         .setup(|app| {
             use tauri::Manager;
-            build_tray(app)?;
+
+            // Tray: log error but don't crash setup if tray fails
+            if let Err(e) = build_tray(app) {
+                eprintln!("[tray] Failed to build tray icon: {}", e);
+            }
 
             // Minimize to tray on close instead of quitting
             let win = app.get_webview_window("main").unwrap();
@@ -110,26 +133,10 @@ fn main() {
 
             let app_handle = app.handle().clone();
             let scheduler_handle = app.handle().clone();
-            let win_for_startup = app.get_webview_window("main").unwrap();
             tauri::async_runtime::spawn(async move {
                 db::initialize(&app_handle)
                     .await
                     .expect("Failed to initialize database");
-
-                // After DB init: check start_minimized setting
-                if let Some(db) = app_handle.try_state::<crate::db::AppDb>() {
-                    let minimized = db.0.lock().ok()
-                        .and_then(|c| c.query_row(
-                            "SELECT value FROM settings WHERE key = 'start_minimized'",
-                            [],
-                            |r| r.get::<_, String>(0),
-                        ).ok())
-                        .map(|v| v == "1")
-                        .unwrap_or(false);
-                    if minimized {
-                        let _ = win_for_startup.hide();
-                    }
-                }
             });
             scheduler::start(scheduler_handle);
             Ok(())
