@@ -6,6 +6,10 @@ on:
     paths:
       - 'docs/**'
   workflow_dispatch:
+  # Auto-redeploy after release workflow updates docs/index.html
+  workflow_run:
+    workflows: ["Build & Release"]
+    types: [completed]
 
 permissions:
   contents: read

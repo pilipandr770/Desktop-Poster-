@@ -10,6 +10,8 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -96,3 +98,29 @@ jobs:
             ${{ steps.find.outputs.nsis }}
             ${{ steps.find.outputs.msi }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Update landing page download URL ────────────────────────────────────
+      - name: Update landing page download URL
+        shell: pwsh
+        run: |
+          # Get the exact .exe filename that was built
+          $exe = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          $tag = "${{ github.ref_name }}"
+          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$($exe.Name)"
+
+          Write-Host "Updating download URL to: $newUrl"
+
+          # Replace all download hrefs in index.html
+          $html = Get-Content "docs/index.html" -Raw -Encoding UTF8
+          $html = $html -replace 'href="https://github\.com/pilipandr770/Desktop-Poster-/releases[^"]*-setup\.exe"', "href=`"$newUrl`""
+          [System.IO.File]::WriteAllText("docs/index.html", $html, [System.Text.UTF8Encoding]::new($false))
+
+          # Commit and push to master so pages.yml redeploys the landing
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --staged --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: update landing download URL to $tag"
+            git push origin HEAD:master
+          }
