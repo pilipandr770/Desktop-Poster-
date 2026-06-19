@@ -69,6 +69,7 @@ fn main() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::save_setting,
+            commands::settings::open_external_url,
             // Sidecar
             commands::sidecar::start_python_sidecar,
             commands::sidecar::stop_python_sidecar,

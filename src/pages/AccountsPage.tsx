@@ -6,8 +6,13 @@ import {
   Clock, Circle, RefreshCw, LogOut
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAccountsStore, type Platform } from "../store/accounts";
+
+const openExternal = (url: string) =>
+  invoke("open_external_url", { url }).catch(() => {
+    // fallback: try window.open (works in dev browser mode)
+    window.open(url, "_blank");
+  });
 import toast from "react-hot-toast";
 
 // ── WhatsApp QR flow ─────────────────────────────────────────────────────────
@@ -625,7 +630,7 @@ export default function AccountsPage() {
                       {platform.helpLinks.map((link) => (
                         <button
                           key={link.url}
-                          onClick={() => openUrl(link.url)}
+                          onClick={() => openExternal(link.url)}
                           className="flex items-center gap-2 text-xs hover:underline"
                           style={{ color: "var(--blue)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
                         >
@@ -700,7 +705,7 @@ export default function AccountsPage() {
                   </p>
 
                   <div className="flex flex-col gap-1.5">
-                    <button onClick={() => openUrl("https://my.telegram.org/apps")}
+                    <button onClick={() => openExternal("https://my.telegram.org/apps")}
                       className="flex items-center gap-2 text-xs hover:underline" style={{ color: "var(--blue)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
                       <ExternalLink size={11} /> API ID &amp; Hash erstellen → my.telegram.org
                     </button>

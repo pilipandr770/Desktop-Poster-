@@ -1,7 +1,8 @@
 use crate::db::AppDb;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Settings {
@@ -87,4 +88,10 @@ pub fn save_setting(db: State<'_, AppDb>, key: String, value: String) -> Result<
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Open a URL in the system default browser.
+#[tauri::command]
+pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    app.opener().open_url(&url, None::<&str>).map_err(|e| e.to_string())
 }
