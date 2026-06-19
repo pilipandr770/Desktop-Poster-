@@ -61,6 +61,10 @@ pub fn call_python(command: Value) -> Result<Value, String> {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            // Inherit full environment so Python's socket/SSL stack
+            // gets SYSTEMROOT, APPDATA, etc. (needed for Windows DNS)
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUNBUFFERED", "1")
             .spawn()
             .map_err(|e| format!("Python konnte nicht gestartet werden: {}", e))?
     };

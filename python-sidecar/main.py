@@ -419,13 +419,40 @@ class EmailHandler:
     """Email через SMTP/IMAP"""
     
     def connect(self, credentials: dict) -> dict:
+        import imaplib
+        import socket
+        host = credentials.get("imap_host", "imap.gmail.com")
+        port = int(credentials.get("imap_port", 993))
+        email_addr = credentials["email"]
+        password = credentials["password"]
         try:
-            import imaplib
-            host = credentials.get("imap_host", "imap.gmail.com")
-            port = int(credentials.get("imap_port", 993))
-            email_addr = credentials["email"]
-            password = credentials["password"]
-
+            # DNS check first — gives clearer error than SSL timeout
+            socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        except OSError:
+            # DNS failed in subprocess context — try well-known IPs as fallback
+            KNOWN_IPS = {
+                "imap.gmail.com": "64.233.166.109",
+                "smtp.gmail.com": "64.233.167.108",
+                "outlook.office365.com": "40.101.4.130",
+                "imap.mail.yahoo.com": "77.238.178.109",
+            }
+            # If we know a fallback IP, continue — IMAP_SSL will use it
+            if host not in KNOWN_IPS:
+                return {
+                    "success": False,
+                    "error": (
+                        f"DNS-Auflösung fehlgeschlagen für '{host}'. "
+                        "Bitte Internetverbindung und Serveradresse prüfen."
+                    )
+                }
+            # Monkey-patch socket to return known IP
+            _orig_getaddrinfo = socket.getaddrinfo
+            def _patched(*args, **kwargs):
+                if args[0] == host:
+                    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (KNOWN_IPS[host], port))]
+                return _orig_getaddrinfo(*args, **kwargs)
+            socket.getaddrinfo = _patched
+        try:
             imap = imaplib.IMAP4_SSL(host, port)
             imap.login(email_addr, password)
             imap.logout()
@@ -437,10 +464,12 @@ class EmailHandler:
             err = str(e)
             if "AUTHENTICATIONFAILED" in err or "Invalid credentials" in err:
                 hint = ""
-                if "gmail" in credentials.get("imap_host", "").lower():
+                if "gmail" in host.lower():
                     hint = " → Bei Gmail: App-Passwort verwenden (Google-Konto → Sicherheit → App-Passwörter)"
                 return {"success": False, "error": f"Falsches Passwort oder Benutzername.{hint}"}
             return {"success": False, "error": f"IMAP-Fehler: {err}"}
+        except OSError as e:
+            return {"success": False, "error": f"Netzwerkfehler: {e}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
     
