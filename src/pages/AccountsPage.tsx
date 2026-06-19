@@ -28,7 +28,7 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
       } else {
         setStep("no-node");
       }
-    });
+    }).catch(() => setStep("no-node"));
   }, []);
 
   const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
@@ -89,9 +89,13 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
 
   const recheckNode = async () => {
     setStep("checking");
-    const ver = await invoke<string | null>("check_nodejs");
-    if (ver) { setNodeVersion(ver); setStep("idle"); }
-    else setStep(installMethod ? "installing" : "no-node");
+    try {
+      const ver = await invoke<string | null>("check_nodejs");
+      if (ver) { setNodeVersion(ver); setStep("idle"); }
+      else setStep(installMethod ? "installing" : "no-node");
+    } catch {
+      setStep("no-node");
+    }
   };
 
   if (step === "checking") return (

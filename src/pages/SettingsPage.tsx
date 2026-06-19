@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Save, Eye, EyeOff, Code2 } from "lucide-react";
+import { Save, Eye, EyeOff, Code2, RefreshCw, Download, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Settings {
@@ -12,6 +12,13 @@ interface Settings {
   auto_reply_enabled: boolean;
   notifications_enabled: boolean;
   start_minimized: boolean;
+}
+
+interface UpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string | null;
+  notes: string | null;
 }
 
 export default function SettingsPage() {
@@ -31,9 +38,43 @@ export default function SettingsPage() {
   const [savingSecret, setSavingSecret] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Updater state
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+
   useEffect(() => {
     invoke<Settings>("get_settings").then(setSettings).catch(console.error);
+    // Auto-check for updates on page open (silent)
+    checkUpdates(true);
   }, []);
+
+  const checkUpdates = async (silent = false) => {
+    setCheckingUpdate(true);
+    try {
+      const info = await invoke<UpdateInfo>("check_for_updates");
+      setUpdateInfo(info);
+      if (!silent && !info.available) {
+        toast.success(`✓ Aktuelle Version ${info.current_version} — kein Update verfügbar`);
+      }
+    } catch (e: any) {
+      if (!silent) toast.error(`Update-Prüfung fehlgeschlagen: ${e}`);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const installUpdate = async () => {
+    setInstallingUpdate(true);
+    toast("⬇️ Update wird heruntergeladen und installiert…", { duration: 10000 });
+    try {
+      await invoke("install_update");
+      // App restarts automatically after this
+    } catch (e: any) {
+      toast.error(`Installation fehlgeschlagen: ${e}`);
+      setInstallingUpdate(false);
+    }
+  };
 
   const saveMetaSecret = async () => {
     if (!metaSecret.trim()) return;
@@ -77,6 +118,79 @@ export default function SettingsPage() {
       </div>
 
       <div className="p-6 space-y-6 max-w-2xl">
+
+        {/* Updates */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--subtext0)" }}>
+            <RefreshCw size={14} />
+            UPDATES
+          </h2>
+          <div
+            className="rounded-xl p-5 space-y-3"
+            style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}
+          >
+            {updateInfo && (
+              <div
+                className="flex items-start gap-3 p-3 rounded-lg"
+                style={{
+                  background: updateInfo.available ? "var(--green)15" : "var(--surface0)",
+                  border: `1px solid ${updateInfo.available ? "var(--green)40" : "var(--surface1)"}`,
+                }}
+              >
+                {updateInfo.available ? (
+                  <Download size={16} style={{ color: "var(--green)", marginTop: 1, flexShrink: 0 }} />
+                ) : (
+                  <CheckCircle size={16} style={{ color: "var(--green)", marginTop: 1, flexShrink: 0 }} />
+                )}
+                <div className="flex-1 min-w-0">
+                  {updateInfo.available ? (
+                    <>
+                      <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>
+                        Neue Version verfügbar: {updateInfo.latest_version}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--overlay1)" }}>
+                        Aktuelle Version: {updateInfo.current_version}
+                      </p>
+                      {updateInfo.notes && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: "var(--overlay0)" }}>
+                          {updateInfo.notes.slice(0, 200)}{updateInfo.notes.length > 200 ? "…" : ""}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--text)" }}>
+                      ✓ Aktuelle Version: <strong>{updateInfo.current_version}</strong> — Sie haben die neueste Version
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => checkUpdates(false)}
+                disabled={checkingUpdate}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                style={{ background: "var(--surface1)", color: "var(--text)" }}
+              >
+                <RefreshCw size={14} className={checkingUpdate ? "animate-spin" : ""} />
+                {checkingUpdate ? "Prüfe…" : "Auf Updates prüfen"}
+              </button>
+
+              {updateInfo?.available && (
+                <button
+                  onClick={installUpdate}
+                  disabled={installingUpdate}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                  style={{ background: "var(--green)", color: "var(--crust)" }}
+                >
+                  <Download size={14} />
+                  {installingUpdate ? "Installiert…" : `Update auf ${updateInfo.latest_version} installieren`}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* AI Settings */}
         <section>

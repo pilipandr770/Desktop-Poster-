@@ -1,7 +1,6 @@
 use crate::db::AppDb;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]

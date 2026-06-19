@@ -33,6 +33,8 @@ fn main() {
         ))
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(commands::whatsapp::WhatsAppProcess(std::sync::Mutex::new(None)))
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -80,6 +82,9 @@ fn main() {
             commands::whatsapp::install_nodejs,
             // Meta OAuth
             commands::oauth::start_meta_oauth,
+            // Updater
+            commands::updater::check_for_updates,
+            commands::updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

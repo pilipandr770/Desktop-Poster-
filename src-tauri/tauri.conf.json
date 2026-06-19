@@ -60,6 +60,13 @@
   "plugins": {
     "sql": {
       "preloadConnections": ["sqlite:crosspost.db"]
+    },
+    "updater": {
+      "endpoints": [
+        "https://pilipandr770.github.io/Desktop-Poster-/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE3MUFGMTQ5QUZFOTIzNzIKUldSeUkrbXZTZkVhcHl2RGZHNlBqeE9kckxRWkxOZHJ1djZwSENKNWdHODVCK2ZvandoQVhxSmUK"
     }
   }
 }

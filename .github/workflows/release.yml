@@ -55,23 +55,72 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build Tauri (NSIS + MSI)
+      - name: Build Tauri (NSIS + MSI + Updater)
         run: npm run tauri build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: set these secrets to sign the installer (removes SmartScreen warning)
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       # ── Collect artifacts ────────────────────────────────────────────────────
       - name: Find installers
         id: find
         shell: pwsh
         run: |
-          $nsis = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
+          $nsis = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Where-Object { $_.Name -notlike "*_en-US*" } | Select-Object -First 1
           $msi  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/msi"  -Filter "*.msi" | Select-Object -First 1
-          echo "nsis=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
-          echo "msi=$($msi.FullName)"   >> $env:GITHUB_OUTPUT
+          # Updater .zip (for tauri-plugin-updater)
+          $zip  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" | Select-Object -First 1
+          $sig  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip.sig" | Select-Object -First 1
+          echo "nsis=$($nsis.FullName)"  >> $env:GITHUB_OUTPUT
+          echo "msi=$($msi.FullName)"    >> $env:GITHUB_OUTPUT
+          echo "zip=$($zip.FullName)"    >> $env:GITHUB_OUTPUT
+          echo "sig=$($sig.FullName)"    >> $env:GITHUB_OUTPUT
+          echo "nsis_name=$($nsis.Name)" >> $env:GITHUB_OUTPUT
+
+      # ── Generate latest.json for tauri-plugin-updater ───────────────────────
+      - name: Generate latest.json
+        id: latest_json
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $zip  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip" | Select-Object -First 1
+          $sig  = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.nsis.zip.sig" | Select-Object -First 1
+
+          # Read signature
+          $signature = ""
+          if ($sig -and (Test-Path $sig.FullName)) {
+            $signature = Get-Content $sig.FullName -Raw
+          }
+
+          # Build download URL
+          $zipName = if ($zip) { $zip.Name } else { "CrossPost.Desktop_${version}_x64-setup.nsis.zip" }
+          $url = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$zipName"
+
+          # Get release notes from git tag message
+          $notes = git tag -l --format='%(contents)' $tag 2>$null
+          if (-not $notes) { $notes = "CrossPost Desktop $tag" }
+
+          $json = @{
+            version = $version
+            notes   = $notes
+            pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature.Trim()
+                url       = $url
+              }
+            }
+          } | ConvertTo-Json -Depth 5
+
+          New-Item -ItemType Directory -Force "docs/updates/windows-x86_64/x86_64/$version" | Out-Null
+          [System.IO.File]::WriteAllText("docs/updates/windows-x86_64/x86_64/$version/index.json", $json, [System.Text.UTF8Encoding]::new($false))
+
+          # Also write a flat latest.json
+          [System.IO.File]::WriteAllText("docs/updates/latest.json", $json, [System.Text.UTF8Encoding]::new($false))
+
+          echo "version=$version" >> $env:GITHUB_OUTPUT
 
       # ── Create GitHub Release ────────────────────────────────────────────────
       - name: Create Release
@@ -84,7 +133,7 @@ jobs:
             ## CrossPost Desktop ${{ github.ref_name }}
 
             ### Installation (Windows)
-            1. Laden Sie `CrossPost-Desktop_${{ github.ref_name }}_x64-setup.exe` herunter
+            1. Laden Sie `CrossPost.Desktop_${{ github.ref_name }}_x64-setup.exe` herunter
             2. Führen Sie die Datei aus (kein Adminrecht nötig)
             3. CrossPost Desktop starten und Lizenz eingeben
 
@@ -97,30 +146,28 @@ jobs:
           files: |
             ${{ steps.find.outputs.nsis }}
             ${{ steps.find.outputs.msi }}
+            ${{ steps.find.outputs.zip }}
+            ${{ steps.find.outputs.sig }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Update landing page download URL ────────────────────────────────────
-      - name: Update landing page download URL
+      # ── Update landing page + commit latest.json ─────────────────────────────
+      - name: Commit updates and landing page
         shell: pwsh
         run: |
-          # Get the exact .exe filename that was built
-          $exe = Get-ChildItem -Recurse "src-tauri/target/release/bundle/nsis" -Filter "*.exe" | Select-Object -First 1
           $tag = "${{ github.ref_name }}"
-          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$($exe.Name)"
+          $nsisName = "${{ steps.find.outputs.nsis_name }}"
+          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$nsisName"
 
-          Write-Host "Updating download URL to: $newUrl"
-
-          # Replace all download hrefs in index.html
+          # Update landing page download URL
           $html = Get-Content "docs/index.html" -Raw -Encoding UTF8
           $html = $html -replace 'href="https://github\.com/pilipandr770/Desktop-Poster-/releases[^"]*-setup\.exe"', "href=`"$newUrl`""
           [System.IO.File]::WriteAllText("docs/index.html", $html, [System.Text.UTF8Encoding]::new($false))
 
-          # Commit and push to master so pages.yml redeploys the landing
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          git add docs/
           git diff --staged --quiet
           if ($LASTEXITCODE -ne 0) {
-            git commit -m "chore: update landing download URL to $tag"
+            git commit -m "chore: release $tag — update landing + latest.json"
             git push origin HEAD:master
           }

@@ -43,3 +43,6 @@ Thumbs.db
 # Environment / secrets
 .env
 .env.local
+
+# Updater signing key (KEEP SECRET)
+updater-key
