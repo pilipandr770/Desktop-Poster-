@@ -421,33 +421,31 @@ class EmailHandler:
     def connect(self, credentials: dict) -> dict:
         import imaplib
         import socket
+        import ssl
         host = credentials.get("imap_host", "imap.gmail.com")
         port = int(credentials.get("imap_port", 993))
         email_addr = credentials["email"]
         password = credentials["password"]
-        # Use pre-resolved IP from Rust if available (avoids DNS in subprocess)
         resolved_ip = credentials.get("imap_host_ip")
-        if resolved_ip:
-            _orig_getaddrinfo = socket.getaddrinfo
-            def _patched(*args, **kwargs):
-                if args[0] == host:
-                    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (resolved_ip, port))]
-                return _orig_getaddrinfo(*args, **kwargs)
-            socket.getaddrinfo = _patched
-        else:
-            # Try DNS; if it fails, give a clear error
-            try:
-                socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-            except OSError as e:
-                return {
-                    "success": False,
-                    "error": (
-                        f"DNS-Auflösung fehlgeschlagen für '{host}'. "
-                        f"Bitte Internetverbindung prüfen. ({e})"
-                    )
-                }
+
         try:
-            imap = imaplib.IMAP4_SSL(host, port)
+            ssl_context = ssl.create_default_context()
+
+            if resolved_ip and hasattr(imaplib.IMAP4_SSL, "_create_socket"):
+                # Python 3.9+: override _create_socket to connect to the pre-resolved IP
+                # without touching DNS. SNI + cert verification still use the real hostname.
+                _ip, _port, _host, _ctx = resolved_ip, port, host, ssl_context
+
+                class _DirectIMAP4SSL(imaplib.IMAP4_SSL):
+                    def _create_socket(self, timeout):
+                        raw = socket.create_connection((_ip, _port), timeout or 30)
+                        return _ctx.wrap_socket(raw, server_hostname=_host)
+
+                imap = _DirectIMAP4SSL(host, port, ssl_context=ssl_context)
+            else:
+                # Fallback: plain IMAP4_SSL (uses system DNS)
+                imap = imaplib.IMAP4_SSL(host, port, ssl_context=ssl_context)
+
             imap.login(email_addr, password)
             imap.logout()
             return {
