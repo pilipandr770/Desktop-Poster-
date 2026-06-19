@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGB — CrossPost Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --bg2: #161b27; --bg3: #1e2435;
+      --border: #2a3245; --text: #e2e8f0; --muted: #8892a4;
+      --accent: #6366f1; --radius: 14px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 64px;
+      background: rgba(15,17,23,0.95); border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-weight: 800; font-size: 18px; color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+    .nav-logo span { background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-back { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .nav-back:hover { color: var(--text); }
+    .container { max-width: 760px; margin: 0 auto; padding: 60px 24px 100px; }
+    h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    h2 { font-size: 12px; font-weight: 700; color: #818cf8; margin: 32px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+    h3 { font-size: 15px; font-weight: 600; color: var(--text); margin: 18px 0 6px; }
+    p { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+    ul { color: var(--muted); font-size: 15px; margin: 8px 0 12px 20px; }
+    ul li { margin-bottom: 4px; }
+    a { color: #818cf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 16px; }
+    footer { border-top: 1px solid var(--border); padding: 24px 40px; text-align: center; font-size: 13px; color: var(--muted); }
+    footer a { color: var(--muted); text-decoration: none; margin: 0 12px; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="url(#g)"/>
+      <path d="M8 14h4m4 0h4M14 8v4m0 4v4" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+      <defs><linearGradient id="g" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+    </svg>
+    <span>CrossPost</span> Desktop
+  </a>
+  <a href="index.html" class="nav-back">← Zurück zur Startseite</a>
+</nav>
+
+<div class="container">
+  <h1>Allgemeine Geschäftsbedingungen</h1>
+  <p class="subtitle">Stand: Juni 2024 · Andrii Pylypchuk, Frankfurt am Main</p>
+
+  <div class="card">
+    <h2>§ 1 Geltungsbereich</h2>
+    <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Verträge zwischen Andrii Pylypchuk (nachfolgend „Anbieter") und dem Nutzer (nachfolgend „Kunde") über die Nutzung der Software CrossPost Desktop.</p>
+    <p>Abweichende Bedingungen des Kunden werden nicht anerkannt, es sei denn, der Anbieter stimmt ihrer Geltung ausdrücklich schriftlich zu.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 2 Vertragsgegenstand</h2>
+    <p>Der Anbieter stellt dem Kunden die Desktop-Software „CrossPost Desktop" zur Verfügung. Die Software ermöglicht die Verwaltung und Veröffentlichung von Inhalten auf verschiedenen Social-Media-Plattformen sowie die Verwaltung eines einheitlichen Posteingangs.</p>
+    <p>Die Software wird als <strong style="color:var(--text)">lokale Windows-Anwendung</strong> bereitgestellt. Alle Nutzerdaten verbleiben auf dem Endgerät des Kunden.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 3 Lizenzmodelle und Preise</h2>
+    <h3>Solo-Lizenz</h3>
+    <p>Nutzung auf einem Gerät, 1 Account pro Plattform. Preis gemäß aktuellem Preisblatt.</p>
+    <h3>Pro-Lizenz</h3>
+    <p>Nutzung auf einem Gerät, bis zu 3 Accounts pro Plattform, KI-Inhaltsgenerierung inklusive.</p>
+    <h3>Agency-Lizenz</h3>
+    <p>Nutzung auf einem Gerät, bis zu 10 Accounts pro Plattform, White-Label-Option.</p>
+    <p>Alle Preise verstehen sich zzgl. der gesetzlichen Mehrwertsteuer. Der Anbieter behält sich das Recht vor, Preise mit einer Ankündigungsfrist von 30 Tagen anzupassen.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 4 Vertragsschluss und Lizenzaktivierung</h2>
+    <p>Der Vertrag kommt durch Kauf und Aktivierung eines Lizenzschlüssels zustande. Nach Zahlung erhält der Kunde einen Lizenzschlüssel, der in der Software einzugeben ist.</p>
+    <p>Die Software kann vor dem Kauf kostenlos in der Beta-Version getestet werden.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 5 Nutzungsrechte</h2>
+    <p>Der Anbieter räumt dem Kunden ein nicht-ausschließliches, nicht übertragbares Recht zur Nutzung der Software auf der lizenzierten Anzahl von Geräten ein.</p>
+    <p>Dem Kunden ist es untersagt:</p>
+    <ul>
+      <li>Die Software zu kopieren, zu verbreiten oder öffentlich zugänglich zu machen</li>
+      <li>Die Software zu dekompilieren, zu disassemblieren oder in sonstiger Weise rückzuentwickeln</li>
+      <li>Lizenzschlüssel weiterzugeben oder zu verkaufen</li>
+      <li>Die Software für illegale Zwecke einzusetzen</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>§ 6 Pflichten des Kunden</h2>
+    <p>Der Kunde ist verantwortlich für:</p>
+    <ul>
+      <li>Die Einhaltung der Nutzungsbedingungen der verbundenen Drittplattformen (Instagram, LinkedIn, etc.)</li>
+      <li>Die Rechtmäßigkeit der veröffentlichten Inhalte</li>
+      <li>Die Sicherheit seiner Zugangsdaten</li>
+      <li>Regelmäßige Datensicherung seiner lokalen Datenbank</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>§ 7 Verfügbarkeit und Updates</h2>
+    <p>Da CrossPost Desktop eine lokale Anwendung ist, ist ihre Funktionsfähigkeit nicht von der Verfügbarkeit unserer Server abhängig (ausgenommen Lizenzprüfung).</p>
+    <p>Updates werden kostenlos bereitgestellt. Der Anbieter ist nicht verpflichtet, bestimmte Funktionen dauerhaft bereitzustellen, insbesondere wenn Drittplattformen ihre APIs ändern.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 8 Haftungsbeschränkung</h2>
+    <p>Der Anbieter haftet unbeschränkt bei Vorsatz und grober Fahrlässigkeit sowie bei Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit.</p>
+    <p>Bei leichter Fahrlässigkeit haftet der Anbieter nur bei Verletzung einer wesentlichen Vertragspflicht (Kardinalpflicht), begrenzt auf den vorhersehbaren, vertragstypischen Schaden.</p>
+    <p>Der Anbieter übernimmt keine Haftung für Schäden, die durch die Nutzung von Drittplattformen (Instagram, LinkedIn, Twitter/X, etc.) entstehen, insbesondere für Kontosperrungen durch die jeweiligen Plattformen.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 9 Widerrufsrecht</h2>
+    <p>Verbraucher (§ 13 BGB) haben grundsätzlich ein 14-tägiges Widerrufsrecht. Da es sich um digitale Inhalte handelt, erlischt das Widerrufsrecht mit Beginn der Vertragserfüllung, sofern der Kunde ausdrücklich zugestimmt hat, dass die Ausführung vor Ablauf der Widerrufsfrist beginnt.</p>
+    <p>Widerrufe richten Sie an: <a href="mailto:info@andrii-it.de">info@andrii-it.de</a></p>
+  </div>
+
+  <div class="card">
+    <h2>§ 10 Laufzeit und Kündigung</h2>
+    <p>Abonnement-Lizenzen haben die vereinbarte Laufzeit und verlängern sich automatisch, sofern nicht fristgerecht gekündigt wird. Die Kündigungsfrist beträgt 14 Tage zum Ende der Laufzeit.</p>
+    <p>Einmalige Lizenzen (Lifetime) laufen unbefristet und können nicht gekündigt werden.</p>
+    <p>Kündigungen sind per E-Mail an <a href="mailto:info@andrii-it.de">info@andrii-it.de</a> möglich.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 11 Datenschutz</h2>
+    <p>Hinweise zur Datenverarbeitung entnehmen Sie bitte unserer <a href="datenschutz.html">Datenschutzerklärung</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 12 Anwendbares Recht und Gerichtsstand</h2>
+    <p>Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.</p>
+    <p>Gerichtsstand für Kaufleute und juristische Personen des öffentlichen Rechts ist Frankfurt am Main.</p>
+  </div>
+
+  <div class="card">
+    <h2>§ 13 Salvatorische Klausel</h2>
+    <p>Sollten einzelne Bestimmungen dieser AGB unwirksam oder undurchführbar sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</p>
+  </div>
+</div>
+
+<footer>
+  <div style="margin-bottom:10px">
+    <a href="index.html">Startseite</a>
+    <a href="impressum.html">Impressum</a>
+    <a href="datenschutz.html">Datenschutz</a>
+    <a href="agb.html">AGB</a>
+  </div>
+  © 2024 Andrii Pylypchuk · Frankfurt am Main
+</footer>
+
+</body>
+</html>
