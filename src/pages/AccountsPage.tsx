@@ -132,36 +132,24 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
   );
 
   if (step === "installing") return (
-    <div style={{ padding: "14px" }}>
-      {installMethod === "winget" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)", fontSize: 13 }}>
-            <Loader size={14} className="animate-spin" style={{ color: "var(--green)" }} />
-            <span><b>Node.js wird installiert</b> (winget läuft im Hintergrund…)</span>
-          </div>
-          <p style={{ color: "var(--overlay1)", fontSize: 12 }}>
-            Die Installation dauert ca. 1–2 Minuten. Klicken Sie danach auf "Prüfen".
+    <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px", borderRadius: 10, background: "var(--blue)12", border: "1px solid var(--blue)30" }}>
+        <ExternalLink size={16} style={{ color: "var(--blue)", marginTop: 1, flexShrink: 0 }} />
+        <div>
+          <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13 }}>Browser geöffnet → nodejs.org</p>
+          <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 3 }}>
+            Node.js LTS herunterladen, installieren, dann hier auf "Prüfen" klicken.
           </p>
-          <button onClick={recheckNode}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <RefreshCw size={13} /> Node.js prüfen
-          </button>
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)", fontSize: 13 }}>
-            <ExternalLink size={14} style={{ color: "var(--blue)" }} />
-            <span>Browser geöffnet → <b>nodejs.org</b></span>
-          </div>
-          <p style={{ color: "var(--overlay1)", fontSize: 12 }}>
-            Laden Sie Node.js LTS herunter, installieren Sie es, und klicken Sie danach auf "Prüfen".
-          </p>
-          <button onClick={recheckNode}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <RefreshCw size={13} /> Node.js prüfen
-          </button>
-        </div>
-      )}
+      </div>
+      <button onClick={recheckNode}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "1px solid var(--surface1)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+        <RefreshCw size={13} /> Node.js prüfen
+      </button>
+      <button onClick={() => setStep("no-node")}
+        style={{ fontSize: 11, color: "var(--overlay0)", background: "none", border: "none", cursor: "pointer" }}>
+        Abbrechen
+      </button>
     </div>
   );
 
