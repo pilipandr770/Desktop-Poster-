@@ -110,10 +110,26 @@ fn main() {
 
             let app_handle = app.handle().clone();
             let scheduler_handle = app.handle().clone();
+            let win_for_startup = app.get_webview_window("main").unwrap();
             tauri::async_runtime::spawn(async move {
                 db::initialize(&app_handle)
                     .await
                     .expect("Failed to initialize database");
+
+                // After DB init: check start_minimized setting
+                if let Some(db) = app_handle.try_state::<crate::db::AppDb>() {
+                    let minimized = db.0.lock().ok()
+                        .and_then(|c| c.query_row(
+                            "SELECT value FROM settings WHERE key = 'start_minimized'",
+                            [],
+                            |r| r.get::<_, String>(0),
+                        ).ok())
+                        .map(|v| v == "1")
+                        .unwrap_or(false);
+                    if minimized {
+                        let _ = win_for_startup.hide();
+                    }
+                }
             });
             scheduler::start(scheduler_handle);
             Ok(())

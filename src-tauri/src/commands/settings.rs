@@ -14,6 +14,7 @@ pub struct Settings {
     pub auto_reply_enabled: bool,
     pub notifications_enabled: bool,
     pub start_minimized: bool,
+    pub sync_interval: String,
 }
 
 fn read(conn: &rusqlite::Connection, key: &str, default: &str) -> String {
@@ -37,6 +38,7 @@ pub fn get_settings(db: State<'_, AppDb>) -> Result<Settings, String> {
         auto_reply_enabled: read(&conn, "auto_reply_enabled", "0") == "1",
         notifications_enabled: read(&conn, "notifications_enabled", "1") == "1",
         start_minimized: read(&conn, "start_minimized", "0") == "1",
+        sync_interval: read(&conn, "sync_interval", "15"),
     })
 }
 
@@ -65,6 +67,7 @@ pub fn update_settings(db: State<'_, AppDb>, settings: Settings) -> Result<(), S
             "start_minimized",
             if settings.start_minimized { "1" } else { "0" }.to_string(),
         ),
+        ("sync_interval", settings.sync_interval),
     ];
 
     for (key, value) in pairs {

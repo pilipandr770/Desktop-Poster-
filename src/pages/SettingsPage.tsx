@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Save, Eye, EyeOff, Code2, RefreshCw, Download, CheckCircle } from "lucide-react";
+import { Save, Eye, EyeOff, Code2, RefreshCw, Download, CheckCircle, Bell } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Settings {
@@ -12,6 +12,7 @@ interface Settings {
   auto_reply_enabled: boolean;
   notifications_enabled: boolean;
   start_minimized: boolean;
+  sync_interval: string;
 }
 
 interface UpdateInfo {
@@ -31,6 +32,7 @@ export default function SettingsPage() {
     auto_reply_enabled: false,
     notifications_enabled: true,
     start_minimized: false,
+    sync_interval: "15",
   });
   const [showKey, setShowKey] = useState(false);
   const [metaSecret, setMetaSecret] = useState("");
@@ -337,30 +339,70 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* App settings */}
+        {/* Sync settings */}
         <section>
-          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--subtext0)" }}>
-            APP-EINSTELLUNGEN
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--subtext0)" }}>
+            <Bell size={14} />
+            SYNCHRONISATION
           </h2>
           <div
-            className="rounded-xl p-5 space-y-3"
+            className="rounded-xl p-5 space-y-4"
             style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}
           >
-            <div className="flex items-center justify-between">
-              <p className="text-sm" style={{ color: "var(--text)" }}>Benachrichtigungen</p>
-              <input
-                type="checkbox"
-                checked={settings.notifications_enabled}
-                onChange={(e) => set("notifications_enabled", e.target.checked)}
-              />
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>
+                Sync-Intervall (Minuten)
+              </label>
+              <p className="text-xs mb-2" style={{ color: "var(--overlay0)" }}>
+                Wie oft neue Nachrichten von verbundenen Konten abgerufen werden
+              </p>
+              <select
+                value={settings.sync_interval}
+                onChange={(e) => set("sync_interval", e.target.value)}
+                style={{ width: "auto", minWidth: 160 }}
+              >
+                <option value="5">Alle 5 Minuten</option>
+                <option value="10">Alle 10 Minuten</option>
+                <option value="15">Alle 15 Minuten</option>
+                <option value="30">Alle 30 Minuten</option>
+                <option value="60">Stündlich</option>
+              </select>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-sm" style={{ color: "var(--text)" }}>Minimiert starten</p>
-              <input
-                type="checkbox"
-                checked={settings.start_minimized}
-                onChange={(e) => set("start_minimized", e.target.checked)}
-              />
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Desktop-Benachrichtigungen</p>
+                <p className="text-xs" style={{ color: "var(--overlay0)" }}>Bei neuen Nachrichten benachrichtigen</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.notifications_enabled}
+                  onChange={(e) => set("notifications_enabled", e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div
+                  className="w-10 h-5 rounded-full peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:rounded-full after:w-4 after:h-4 after:transition-all"
+                  style={{ background: settings.notifications_enabled ? "var(--blue)" : "var(--surface1)" }}
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Minimiert starten</p>
+                <p className="text-xs" style={{ color: "var(--overlay0)" }}>App beim Start in Taskleiste ausblenden</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.start_minimized}
+                  onChange={(e) => set("start_minimized", e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div
+                  className="w-10 h-5 rounded-full peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:rounded-full after:w-4 after:h-4 after:transition-all"
+                  style={{ background: settings.start_minimized ? "var(--blue)" : "var(--surface1)" }}
+                />
+              </label>
             </div>
           </div>
         </section>

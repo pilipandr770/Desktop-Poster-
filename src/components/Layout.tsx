@@ -2,8 +2,9 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   Send, Inbox, Users, Settings, Key,
   Instagram, Facebook, MessageCircle, Linkedin,
-  Twitter, Mail, Bot, Circle, Zap
+  Twitter, Mail, Bot, Circle, Zap, LogOut
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAccountsStore } from "../store/accounts";
 
 const navItems = [
@@ -142,8 +143,8 @@ export default function Layout() {
           </div>
         )}
 
-        {/* License */}
-        <div style={{ padding: "8px 10px", borderTop: "1.5px solid var(--surface0)" }}>
+        {/* Bottom: License + Quit */}
+        <div style={{ padding: "8px 10px", borderTop: "1.5px solid var(--surface0)", display: "flex", flexDirection: "column", gap: 2 }}>
           <NavLink
             to="/license"
             className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
@@ -152,6 +153,14 @@ export default function Layout() {
             <Key size={14} />
             Lizenz
           </NavLink>
+          <button
+            onClick={() => invoke("plugin:process|exit", { code: 0 }).catch(() => window.close())}
+            className="nav-link"
+            style={{ fontSize: 12, color: "var(--overlay0)", width: "100%", textAlign: "left", border: "none", cursor: "pointer" }}
+          >
+            <LogOut size={14} />
+            Beenden
+          </button>
         </div>
       </aside>
 
