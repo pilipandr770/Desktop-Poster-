@@ -2,6 +2,7 @@ use crate::db::AppDb;
 use rusqlite::params;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 /// Start the background scheduler. Called once from main.rs setup.
 /// Waits for the DB to be ready, then ticks every 60 seconds:
@@ -19,7 +20,7 @@ pub fn start(app_handle: AppHandle) {
 
             if let Some(db) = app_handle.try_state::<AppDb>() {
                 run_scheduled_posts(&db);
-                maybe_sync_messages(&db);
+                maybe_sync_messages(&db, &app_handle);
             }
         }
     });
@@ -88,7 +89,7 @@ fn publish_for_account(db: &AppDb, account_id: &str, content: &str) -> Result<()
 
 // ─── Message sync ─────────────────────────────────────────────────────────────
 
-fn maybe_sync_messages(db: &AppDb) {
+fn maybe_sync_messages(db: &AppDb, app: &AppHandle) {
     let interval_min: i64 = {
         let conn = match db.0.lock() {
             Ok(c) => c,
@@ -148,8 +149,25 @@ fn maybe_sync_messages(db: &AppDb) {
         .unwrap_or_default()
     };
 
+    let mut total_new = 0usize;
     for (account_id, platform) in accounts {
-        let _ = sync_account(db, &account_id, &platform);
+        if let Ok(n) = sync_account(db, &account_id, &platform) {
+            total_new += n;
+        }
+    }
+
+    if total_new > 0 {
+        let body = if total_new == 1 {
+            "1 neue Nachricht eingegangen".to_string()
+        } else {
+            format!("{} neue Nachrichten eingegangen", total_new)
+        };
+        let _ = app
+            .notification()
+            .builder()
+            .title("CrossPost Desktop")
+            .body(&body)
+            .show();
     }
 
     let now = chrono::Utc::now().to_rfc3339();
@@ -161,7 +179,7 @@ fn maybe_sync_messages(db: &AppDb) {
     }
 }
 
-fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<(), String> {
+fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<usize, String> {
     let (_, creds) = fetch_creds(db, account_id)?;
 
     let cmd = serde_json::json!({
@@ -177,6 +195,7 @@ fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<(), Stri
 
     let messages = res["messages"].as_array().cloned().unwrap_or_default();
     let now = chrono::Utc::now().to_rfc3339();
+    let mut new_count = 0usize;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     for msg in &messages {
@@ -184,7 +203,7 @@ fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<(), Stri
         if id.is_empty() {
             continue;
         }
-        let _ = conn.execute(
+        let inserted = conn.execute(
             "INSERT OR IGNORE INTO messages
              (id, account_id, platform, conversation_id, sender_name, sender_id, content, direction, is_read, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9)",
@@ -199,7 +218,11 @@ fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<(), Stri
                 msg["direction"].as_str().unwrap_or("incoming"),
                 msg["created_at"].as_str().unwrap_or(&now),
             ],
-        );
+        ).unwrap_or(0);
+        // Only count incoming messages that were actually new (not already in DB)
+        if inserted > 0 && msg["direction"].as_str().unwrap_or("incoming") == "incoming" {
+            new_count += 1;
+        }
     }
 
     let _ = conn.execute(
@@ -207,7 +230,7 @@ fn sync_account(db: &AppDb, account_id: &str, platform: &str) -> Result<(), Stri
         params![now, account_id],
     );
 
-    Ok(())
+    Ok(new_count)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

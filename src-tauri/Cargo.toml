@@ -39,6 +39,7 @@ base64 = "0.22"
 rusqlite = { version = "0.31", features = ["bundled"] }
 argon2 = "0.4"
 urlencoding = "2"
+encoding_rs = "0.8"
 
 [profile.dev]
 incremental = true

@@ -6,6 +6,66 @@ mod db;
 mod license;
 mod scheduler;
 
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    use tauri::Manager;
+
+    let show = MenuItemBuilder::with_id("show", "Anzeigen").build(app)?;
+    let hide = MenuItemBuilder::with_id("hide", "Verbergen").build(app)?;
+    let sep = tauri::menu::PredefinedMenuItem::separator(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Beenden").build(app)?;
+
+    let menu = MenuBuilder::new(app)
+        .item(&show)
+        .item(&hide)
+        .item(&sep)
+        .item(&quit)
+        .build()?;
+
+    TrayIconBuilder::with_id("main")
+        .icon(app.default_window_icon().unwrap().clone())
+        .tooltip("CrossPost Desktop")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+            "hide" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                let app = tray.app_handle();
+                if let Some(w) = app.get_webview_window("main") {
+                    if w.is_visible().unwrap_or(false) {
+                        let _ = w.hide();
+                    } else {
+                        let _ = w.show();
+                        let _ = w.set_focus();
+                    }
+                }
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -14,9 +74,7 @@ fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(
             tauri_plugin_stronghold::Builder::new(|password| {
-                // argon2 v0.4 (RustCrypto) API
                 use argon2::Argon2;
-                // Salt must be exactly 16 bytes
                 let salt = b"crosspost-salt-1";
                 let mut key = vec![0u8; 32];
                 Argon2::default()
@@ -37,6 +95,19 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .manage(commands::whatsapp::WhatsAppProcess(std::sync::Mutex::new(None)))
         .setup(|app| {
+            use tauri::Manager;
+            build_tray(app)?;
+
+            // Minimize to tray on close instead of quitting
+            let win = app.get_webview_window("main").unwrap();
+            let win_clone = win.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = win_clone.hide();
+                }
+            });
+
             let app_handle = app.handle().clone();
             let scheduler_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

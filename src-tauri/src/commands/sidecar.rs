@@ -4,6 +4,40 @@ use std::io::{BufWriter, Write};
 use std::process::{Command, Stdio};
 use tauri::State;
 
+fn decode_process_output(bytes: &[u8]) -> String {
+    if let Ok(s) = String::from_utf8(bytes.to_vec()) {
+        return s;
+    }
+
+    #[cfg(windows)]
+    {
+        // Some Windows dependencies still write cp1251/cp866 bytes into stderr.
+        // Decode with common legacy code pages to avoid unreadable replacement chars.
+        use encoding_rs::{IBM866, WINDOWS_1251};
+        let (cp1251, _, _) = WINDOWS_1251.decode(bytes);
+        let (cp866, _, _) = IBM866.decode(bytes);
+
+        let cp1251_score = cp1251
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || c.is_whitespace() || ('\u{0400}'..='\u{04FF}').contains(c))
+            .count();
+        let cp866_score = cp866
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || c.is_whitespace() || ('\u{0400}'..='\u{04FF}').contains(c))
+            .count();
+
+        if cp1251_score >= cp866_score {
+            return cp1251.into_owned();
+        }
+        return cp866.into_owned();
+    }
+
+    #[cfg(not(windows))]
+    {
+        String::from_utf8_lossy(bytes).into_owned()
+    }
+}
+
 /// Spawn a fresh Python process, send one JSON command, read one JSON response.
 /// Each call is stateless — Python reads one line, responds, then exits (stdin EOF).
 pub fn call_python(command: Value) -> Result<Value, String> {
@@ -65,11 +99,14 @@ pub fn call_python(command: Value) -> Result<Value, String> {
         // Build command with full inherited environment
         // Windows DNS (WinSock) requires SYSTEMROOT to be set in the process env
         let mut cmd = Command::new(&python_bin);
-        cmd.arg(&sidecar_path)
+        cmd.arg("-X")
+            .arg("utf8")
+            .arg(&sidecar_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
             .env("PYTHONUNBUFFERED", "1");
 
         // Explicitly forward critical Windows env vars for network / SSL
@@ -97,8 +134,8 @@ pub fn call_python(command: Value) -> Result<Value, String> {
         .wait_with_output()
         .map_err(|e| e.to_string())?;
 
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    let stdout_str = decode_process_output(&output.stdout);
+    let stderr_str = decode_process_output(&output.stderr);
 
     // Find first line that looks like JSON (starts with '{' or '[')
     // Some Windows libs print garbage to stdout before our JSON
