@@ -178,16 +178,43 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
     </div>
   );
 
-  if (step === "error") return (
-    <div style={{ padding: "12px 14px" }}>
-      <p style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>
-        ⚠️ {errorMsg.includes("Node") ? "Node.js nicht gefunden. Bitte installieren: nodejs.org" : errorMsg.slice(0, 120)}
-      </p>
-      <button onClick={startConnect} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "white", background: "#25D366", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 8, fontWeight: 600 }}>
-        <RefreshCw size={13} /> Erneut versuchen
-      </button>
-    </div>
-  );
+  if (step === "error") {
+    const isNodeError = errorMsg.includes("Node") || errorMsg.includes("node");
+    return (
+      <div style={{ padding: "12px 14px" }}>
+        {isNodeError ? (
+          <>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px", borderRadius: 10, background: "var(--yellow)15", border: "1px solid var(--yellow)40", marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>⚠️</span>
+              <div>
+                <p style={{ color: "var(--yellow)", fontWeight: 600, fontSize: 13 }}>Node.js nicht gefunden</p>
+                <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 2 }}>
+                  WhatsApp benötigt Node.js (kostenlos, von nodejs.org).
+                </p>
+              </div>
+            </div>
+            <button onClick={installNode}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #25D366, #128C7E)", color: "white", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 15px #25D36640", marginBottom: 8 }}>
+              <Plus size={15} /> Node.js automatisch installieren
+            </button>
+            <button onClick={recheckNode}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "8px 0", borderRadius: 8, background: "var(--surface0)", color: "var(--subtext1)", border: "none", cursor: "pointer", fontSize: 12 }}>
+              <RefreshCw size={13} /> Bereits installiert? Prüfen
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>
+              ⚠️ {errorMsg.slice(0, 120)}
+            </p>
+            <button onClick={startConnect} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "white", background: "#25D366", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 8, fontWeight: 600 }}>
+              <RefreshCw size={13} /> Erneut versuchen
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   if (step === "qr" || step === "starting") return (
     <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
