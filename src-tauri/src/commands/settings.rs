@@ -1,6 +1,7 @@
 use crate::db::AppDb;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,5 +75,17 @@ pub fn update_settings(db: State<'_, AppDb>, settings: Settings) -> Result<(), S
         .map_err(|e| e.to_string())?;
     }
 
+    Ok(())
+}
+
+/// Save arbitrary key-value pairs to settings (e.g. meta_app_secret)
+#[tauri::command]
+pub fn save_setting(db: State<'_, AppDb>, key: String, value: String) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))",
+        params![key, value],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }

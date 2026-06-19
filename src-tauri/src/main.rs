@@ -57,11 +57,14 @@ fn main() {
             // Settings
             commands::settings::get_settings,
             commands::settings::update_settings,
+            commands::settings::save_setting,
             // Sidecar
             commands::sidecar::start_python_sidecar,
             commands::sidecar::stop_python_sidecar,
             commands::sidecar::send_to_sidecar,
             commands::sidecar::generate_ai_content,
+            // Meta OAuth
+            commands::oauth::start_meta_oauth,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

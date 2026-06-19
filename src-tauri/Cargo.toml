@@ -34,6 +34,7 @@ aes-gcm = "0.10"
 base64 = "0.22"
 rusqlite = { version = "0.31", features = ["bundled"] }
 argon2 = "0.4"
+urlencoding = "2"
 
 [profile.dev]
 incremental = true

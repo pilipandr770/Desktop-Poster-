@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, CheckCircle, XCircle, Loader, Instagram, Facebook, Linkedin, Twitter, Mail, MessageCircle, Bot } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAccountsStore, type Platform } from "../store/accounts";
 import toast from "react-hot-toast";
+
+// Platforms using Meta OAuth (no manual credential entry)
+const META_OAUTH_PLATFORMS = ["instagram", "facebook"];
 
 const PLATFORMS_CONFIG = [
   {
@@ -9,20 +13,18 @@ const PLATFORMS_CONFIG = [
     label: "Instagram",
     color: "#E1306C",
     icon: Instagram,
-    fields: [
-      { key: "username", label: "Benutzername", type: "text" },
-      { key: "password", label: "Passwort", type: "password" },
-    ],
+    oauthOnly: true,
+    fields: [],
+    note: "Verbindung über Meta OAuth — Sie werden zu Facebook weitergeleitet",
   },
   {
     id: "facebook" as Platform,
     label: "Facebook",
     color: "#1877F2",
     icon: Facebook,
-    fields: [
-      { key: "username", label: "E-Mail oder Telefon", type: "text" },
-      { key: "password", label: "Passwort", type: "password" },
-    ],
+    oauthOnly: true,
+    fields: [],
+    note: "Verbindung über Meta OAuth — erfordert eine Facebook-Seite",
   },
   {
     id: "whatsapp" as Platform,
@@ -90,10 +92,34 @@ export default function AccountsPage() {
 
   useEffect(() => { fetchAccounts(); }, []);
 
-  const handleConnect = async (platform: Platform) => {
+  const handleMetaOAuth = async (platform: Platform) => {
     try {
       setConnecting(platform);
-      await addAccount(platform, formData);
+      toast("Browser wird geöffnet — bitte bei Meta anmelden...", { icon: "🌐" });
+      const result: any = await invoke("start_meta_oauth", { platform });
+      if (result?.success) {
+        await fetchAccounts();
+        toast.success(`${result.account.display_name} erfolgreich verbunden!`);
+      }
+    } catch (e: any) {
+      toast.error(`OAuth Fehler: ${e}`);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const handleConnect = async (platform: Platform) => {
+    if (META_OAUTH_PLATFORMS.includes(platform)) {
+      return handleMetaOAuth(platform);
+    }
+    try {
+      setConnecting(platform);
+      const creds: Record<string, string> = {};
+      const config = PLATFORMS_CONFIG.find((p) => p.id === platform);
+      config?.fields.forEach((f) => {
+        creds[f.key] = formData[`${platform}_${f.key}`] || "";
+      });
+      await addAccount(platform, creds);
       toast.success(`${platform} erfolgreich verbunden!`);
       setConnecting(null);
       setFormData({});
@@ -215,57 +241,54 @@ export default function AccountsPage() {
                     </p>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    {platform.fields.map((field) => (
-                      <div key={field.key}>
-                        <label className="block text-xs mb-1" style={{ color: "var(--subtext0)" }}>
-                          {field.label}
-                        </label>
-                        <input
-                          type={field.type}
-                          placeholder={"placeholder" in field ? field.placeholder : ""}
-                          value={formData[`${platform.id}_${field.key}`] || ""}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              [`${platform.id}_${field.key}`]: e.target.value,
-                            }))
-                          }
-                          style={{
-                            background: "var(--surface0)",
-                            border: "1px solid var(--surface1)",
-                            borderRadius: 6,
-                            padding: "6px 10px",
-                            color: "var(--text)",
-                            width: "100%",
-                            fontSize: 13,
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {platform.fields.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {platform.fields.map((field) => (
+                        <div key={field.key}>
+                          <label className="block text-xs mb-1" style={{ color: "var(--subtext0)" }}>
+                            {field.label}
+                          </label>
+                          <input
+                            type={field.type}
+                            placeholder={"placeholder" in field ? (field as any).placeholder : ""}
+                            value={formData[`${platform.id}_${field.key}`] || ""}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                [`${platform.id}_${field.key}`]: e.target.value,
+                              }))
+                            }
+                            style={{
+                              background: "var(--surface0)",
+                              border: "1px solid var(--surface1)",
+                              borderRadius: 6,
+                              padding: "6px 10px",
+                              color: "var(--text)",
+                              width: "100%",
+                              fontSize: 13,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <button
-                    onClick={() => {
-                      const creds: Record<string, string> = {};
-                      platform.fields.forEach((f) => {
-                        creds[f.key] = formData[`${platform.id}_${f.key}`] || "";
-                      });
-                      handleConnect(platform.id);
-                    }}
+                    onClick={() => handleConnect(platform.id)}
                     disabled={isConnecting}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-                    style={{
-                      background: platform.color,
-                      color: "white",
-                    }}
+                    style={{ background: platform.color, color: "white" }}
                   >
                     {isConnecting ? (
                       <Loader size={14} className="animate-spin" />
                     ) : (
                       <Plus size={14} />
                     )}
-                    {isConnecting ? "Verbinde..." : "Verbinden"}
+                    {isConnecting
+                      ? "Verbinde..."
+                      : (platform as any).oauthOnly
+                      ? "Mit Meta anmelden →"
+                      : "Verbinden"}
                   </button>
                 </div>
               );

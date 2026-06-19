@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Save, Eye, EyeOff } from "lucide-react";
+import { Save, Eye, EyeOff, Code2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Settings {
@@ -26,11 +26,28 @@ export default function SettingsPage() {
     start_minimized: false,
   });
   const [showKey, setShowKey] = useState(false);
+  const [metaSecret, setMetaSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [savingSecret, setSavingSecret] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     invoke<Settings>("get_settings").then(setSettings).catch(console.error);
   }, []);
+
+  const saveMetaSecret = async () => {
+    if (!metaSecret.trim()) return;
+    setSavingSecret(true);
+    try {
+      await invoke("save_setting", { key: "meta_app_secret", value: metaSecret.trim() });
+      toast.success("Meta App Secret gespeichert");
+      setMetaSecret("");
+    } catch (e: any) {
+      toast.error(`Fehler: ${e}`);
+    } finally {
+      setSavingSecret(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -231,6 +248,53 @@ export default function SettingsPage() {
                 onChange={(e) => set("start_minimized", e.target.checked)}
               />
             </div>
+          </div>
+        </section>
+
+        {/* Meta Developer Settings */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--subtext0)" }}>
+            <Code2 size={14} />
+            ENTWICKLER — META API
+          </h2>
+          <div
+            className="rounded-xl p-5 space-y-4"
+            style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}
+          >
+            <p className="text-xs" style={{ color: "var(--overlay0)" }}>
+              App ID: <code style={{ color: "var(--yellow)" }}>1696429314893660</code>
+              {" "}— einmalig das App Secret eintragen (aus Meta Developer Portal → Einstellungen → Grundlegendes).
+            </p>
+            <div>
+              <label className="block text-sm mb-1" style={{ color: "var(--subtext0)" }}>
+                Meta App Secret
+              </label>
+              <div className="relative">
+                <input
+                  type={showSecret ? "text" : "password"}
+                  placeholder="Aus Meta Developer Portal kopieren..."
+                  value={metaSecret}
+                  onChange={(e) => setMetaSecret(e.target.value)}
+                  style={{ paddingRight: 40 }}
+                />
+                <button
+                  onClick={() => setShowSecret(!showSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--overlay0)" }}
+                >
+                  {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={saveMetaSecret}
+              disabled={savingSecret || !metaSecret.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40"
+              style={{ background: "var(--blue)", color: "var(--crust)" }}
+            >
+              <Save size={14} />
+              {savingSecret ? "Speichert..." : "App Secret speichern"}
+            </button>
           </div>
         </section>
 

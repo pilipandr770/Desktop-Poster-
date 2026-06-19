@@ -35,66 +35,140 @@ def typing_delay(text: str):
 
 # ─── Platform handlers ────────────────────────────────────────────────────────
 
-class InstagramHandler:
-    """Instagram + Facebook через Instagrapi"""
-    
+class InstagramGraphHandler:
+    """Instagram + Facebook через offiziellen Meta Graph API (OAuth token)"""
+
+    GRAPH = "https://graph.facebook.com/v19.0"
+
+    def _get(self, path: str, token: str, params: dict = None) -> dict:
+        import urllib.request, urllib.parse
+        p = {"access_token": token}
+        if params:
+            p.update(params)
+        url = f"{self.GRAPH}/{path}?{urllib.parse.urlencode(p)}"
+        with urllib.request.urlopen(url, timeout=15) as r:
+            return json.loads(r.read())
+
+    def _post_json(self, path: str, token: str, data: dict) -> dict:
+        import urllib.request, urllib.parse
+        data["access_token"] = token
+        encoded = urllib.parse.urlencode(data).encode()
+        url = f"{self.GRAPH}/{path}"
+        req = urllib.request.Request(url, data=encoded, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read())
+
     def connect(self, credentials: dict) -> dict:
+        """credentials = {"access_token": "...", "user_id": "...", "platform": "..."}"""
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.login(credentials["username"], credentials["password"])
-            # Сохраняем сессию
-            session_data = cl.get_settings()
-            return {"success": True, "session": session_data}
+            token = credentials.get("access_token", "")
+            if not token:
+                return {"success": False, "error": "Kein Access Token"}
+            data = self._get("me", token, {"fields": "id,name"})
+            if "error" in data:
+                return {"success": False, "error": data["error"].get("message", "API Fehler")}
+            return {
+                "success": True,
+                "profile": {"name": data.get("name", ""), "id": data.get("id", "")}
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    def get_messages(self, session: dict, limit: int = 20) -> dict:
+
+    def get_messages(self, credentials: dict, limit: int = 20) -> dict:
+        """Fetch DMs via Graph API (Instagram Messaging or Facebook Messenger)"""
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
-            threads = cl.direct_threads(amount=limit)
+            token = credentials.get("access_token", "")
+            platform = credentials.get("platform", "instagram")
             messages = []
-            for thread in threads:
-                for msg in thread.messages[:5]:
-                    messages.append({
-                        "id": str(msg.id),
-                        "conversation_id": str(thread.id),
-                        "sender_name": thread.users[0].username if thread.users else "Unknown",
-                        "sender_id": str(thread.users[0].pk) if thread.users else "",
-                        "content": msg.text or "",
-                        "direction": "incoming",
-                        "created_at": msg.timestamp.isoformat() if msg.timestamp else ""
-                    })
+
+            if platform == "instagram":
+                user_id = credentials.get("user_id", "")
+                data = self._get(f"{user_id}/conversations", token, {
+                    "platform": "instagram",
+                    "fields": "participants,messages{message,from,created_time}"
+                })
+                for conv in data.get("data", [])[:limit]:
+                    for msg in conv.get("messages", {}).get("data", []):
+                        sender = msg.get("from", {})
+                        messages.append({
+                            "id": msg.get("id", ""),
+                            "conversation_id": conv.get("id", ""),
+                            "sender_name": sender.get("name", ""),
+                            "sender_id": sender.get("id", ""),
+                            "content": msg.get("message", ""),
+                            "direction": "incoming",
+                            "created_at": msg.get("created_time", "")
+                        })
+            else:
+                # Facebook Messenger — get page conversations
+                data = self._get("me/conversations", token, {
+                    "fields": "participants,messages{message,from,created_time}"
+                })
+                for conv in data.get("data", [])[:limit]:
+                    for msg in conv.get("messages", {}).get("data", []):
+                        sender = msg.get("from", {})
+                        messages.append({
+                            "id": msg.get("id", ""),
+                            "conversation_id": conv.get("id", ""),
+                            "sender_name": sender.get("name", ""),
+                            "sender_id": sender.get("id", ""),
+                            "content": msg.get("message", ""),
+                            "direction": "incoming",
+                            "created_at": msg.get("created_time", "")
+                        })
+
             return {"success": True, "messages": messages}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    def send_message(self, session: dict, user_id: str, text: str) -> dict:
+
+    def send_message(self, credentials: dict, user_id: str, text: str) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
+            token = credentials.get("access_token", "")
+            ig_user_id = credentials.get("user_id", "")
             human_delay()
             typing_delay(text)
-            cl.direct_send(text, [int(user_id)])
-            return {"success": True}
+            result = self._post_json(f"{ig_user_id}/messages", token, {
+                "recipient": json.dumps({"id": user_id}),
+                "message": json.dumps({"text": text})
+            })
+            if "error" in result:
+                return {"success": False, "error": result["error"].get("message", "Fehler")}
+            return {"success": True, "message_id": result.get("message_id", "")}
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
-    def post_content(self, session: dict, content: str, media_path: str = None) -> dict:
+
+    def post_content(self, credentials: dict, content: str, media_path: str = None) -> dict:
         try:
-            from instagrapi import Client
-            cl = Client()
-            cl.set_settings(session)
+            token = credentials.get("access_token", "")
+            platform = credentials.get("platform", "instagram")
             human_delay(3.0, 10.0)
-            if media_path:
-                media = cl.photo_upload(media_path, content)
-                return {"success": True, "post_id": str(media.pk)}
+
+            if platform == "instagram":
+                ig_user_id = credentials.get("user_id", "")
+                if media_path:
+                    # Step 1: create media container
+                    container = self._post_json(f"{ig_user_id}/media", token, {
+                        "image_url": media_path,  # must be public URL
+                        "caption": content
+                    })
+                    container_id = container.get("id")
+                    if not container_id:
+                        return {"success": False, "error": "Media-Container konnte nicht erstellt werden"}
+                    # Step 2: publish
+                    result = self._post_json(f"{ig_user_id}/media_publish", token, {
+                        "creation_id": container_id
+                    })
+                    return {"success": True, "post_id": result.get("id", "")}
+                else:
+                    return {"success": False, "error": "Instagram erfordert ein Bild oder Video für Posts"}
+
             else:
-                # Instagram требует медиа для поста — только caption без фото нельзя
-                return {"success": False, "error": "Instagram требует изображение или видео"}
+                # Facebook Page post
+                result = self._post_json("me/feed", token, {"message": content})
+                if "error" in result:
+                    return {"success": False, "error": result["error"].get("message", "Fehler")}
+                return {"success": True, "post_id": result.get("id", "")}
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -425,8 +499,8 @@ class AIHandler:
 # ─── Message Router ────────────────────────────────────────────────────────────
 
 handlers = {
-    "instagram": InstagramHandler(),
-    "facebook": InstagramHandler(),  # Instagrapi handles both
+    "instagram": InstagramGraphHandler(),
+    "facebook": InstagramGraphHandler(),
     "linkedin": LinkedInHandler(),
     "twitter": TwitterHandler(),
     "telegram": TelegramHandler(),
