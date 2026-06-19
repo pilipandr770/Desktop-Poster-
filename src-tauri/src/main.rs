@@ -77,6 +77,8 @@ fn main() {
             commands::whatsapp::whatsapp_call,
             commands::whatsapp::check_nodejs,
             commands::whatsapp::install_nodejs,
+            // Meta OAuth
+            commands::oauth::start_meta_oauth,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

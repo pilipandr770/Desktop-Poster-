@@ -227,12 +227,10 @@ const PLATFORMS = [
     color: "#E1306C",
     gradient: "linear-gradient(135deg, #E1306C, #833AB4)",
     icon: Instagram,
-    fields: [
-      { key: "username", label: "Benutzername", type: "text",     placeholder: "z.B. andrii.photo (kein @)" },
-      { key: "password", label: "Passwort",     type: "password", placeholder: "Instagram-Passwort" },
-    ],
-    note: "⚠️ Benutzername eingeben — keine E-Mail-Adresse",
+    fields: [],
+    note: "✅ Offizielle Meta OAuth — kein Passwort gespeichert",
     helpLinks: [],
+    useMetaOAuth: true,
   },
   {
     id: "facebook" as Platform,
@@ -240,12 +238,10 @@ const PLATFORMS = [
     color: "#1877F2",
     gradient: "linear-gradient(135deg, #1877F2, #0a4da6)",
     icon: Facebook,
-    fields: [
-      { key: "username", label: "E-Mail oder Telefon", type: "text",     placeholder: "email@example.com" },
-      { key: "password", label: "Passwort",             type: "password", placeholder: "Facebook-Passwort" },
-    ],
-    note: "",
+    fields: [],
+    note: "✅ Offizielle Meta OAuth — erfordert eine Facebook-Seite",
     helpLinks: [],
+    useMetaOAuth: true,
   },
   {
     id: "whatsapp" as Platform,
@@ -339,8 +335,28 @@ export default function AccountsPage() {
 
   useEffect(() => { fetchAccounts(); }, []);
 
+  const handleMetaOAuth = async (platform: Platform) => {
+    try {
+      setConnecting(platform);
+      toast("🌐 Browser wird geöffnet — bitte bei Meta anmelden...", { duration: 6000 });
+      const result: any = await invoke("start_meta_oauth", { platform });
+      if (result?.success) {
+        await fetchAccounts();
+        toast.success(`✓ ${result.account.display_name} erfolgreich verbunden!`);
+        setExpanded(null);
+      }
+    } catch (e: any) {
+      toast.error(`OAuth Fehler: ${String(e).slice(0, 120)}`);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const handleConnect = async (platform: Platform) => {
     const cfg = PLATFORMS.find((p) => p.id === platform)!;
+    if ((cfg as any).useMetaOAuth) {
+      return handleMetaOAuth(platform);
+    }
     const creds: Record<string, string> = {};
     cfg.fields.forEach((f) => {
       creds[f.key] = formData[`${platform}_${f.key}`]?.trim() || "";
@@ -655,6 +671,8 @@ export default function AccountsPage() {
                   >
                     {isConnecting ? (
                       <><Loader size={15} className="animate-spin" /> Verbinde…</>
+                    ) : (platform as any).useMetaOAuth ? (
+                      <><Plus size={15} /> Mit Meta anmelden →</>
                     ) : (
                       <><Plus size={15} /> Verbinden</>
                     )}

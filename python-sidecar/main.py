@@ -558,9 +558,137 @@ class WhatsAppHandler:
         return {"ok": False, "error": "WhatsApp noch nicht verfügbar."}
 
 
+class InstagramGraphHandler:
+    """Instagram + Facebook via official Meta Graph API (OAuth token).
+    Used when credentials contain 'access_token' (set by Meta OAuth flow).
+    """
+
+    GRAPH = "https://graph.facebook.com/v19.0"
+
+    def _get(self, path: str, token: str, params: dict = None) -> dict:
+        import urllib.request, urllib.parse
+        p = {"access_token": token}
+        if params:
+            p.update(params)
+        url = f"{self.GRAPH}/{path}?{urllib.parse.urlencode(p)}"
+        with urllib.request.urlopen(url, timeout=15) as r:
+            return json.loads(r.read())
+
+    def _post_form(self, path: str, token: str, data: dict) -> dict:
+        import urllib.request, urllib.parse
+        data["access_token"] = token
+        encoded = urllib.parse.urlencode(data).encode()
+        req = urllib.request.Request(f"{self.GRAPH}/{path}", data=encoded, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read())
+
+    def connect(self, credentials: dict) -> dict:
+        try:
+            token = credentials.get("access_token", "")
+            data = self._get("me", token, {"fields": "id,name"})
+            if "error" in data:
+                return {"success": False, "error": data["error"].get("message", "API Fehler")}
+            return {"success": True, "profile": {"name": data.get("name", ""), "id": data.get("id", "")}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_messages(self, credentials: dict, limit: int = 20) -> dict:
+        try:
+            token = credentials.get("access_token", "")
+            platform = credentials.get("platform", "instagram")
+            messages = []
+            if platform == "instagram":
+                user_id = credentials.get("user_id", "")
+                data = self._get(f"{user_id}/conversations", token, {
+                    "platform": "instagram",
+                    "fields": "participants,messages{message,from,created_time}"
+                })
+                for conv in data.get("data", [])[:limit]:
+                    for msg in conv.get("messages", {}).get("data", []):
+                        sender = msg.get("from", {})
+                        messages.append({
+                            "id": msg.get("id", ""),
+                            "conversation_id": conv.get("id", ""),
+                            "sender_name": sender.get("name", ""),
+                            "sender_id": sender.get("id", ""),
+                            "content": msg.get("message", ""),
+                            "direction": "incoming",
+                            "created_at": msg.get("created_time", "")
+                        })
+            else:
+                data = self._get("me/conversations", token, {
+                    "fields": "participants,messages{message,from,created_time}"
+                })
+                for conv in data.get("data", [])[:limit]:
+                    for msg in conv.get("messages", {}).get("data", []):
+                        sender = msg.get("from", {})
+                        messages.append({
+                            "id": msg.get("id", ""),
+                            "conversation_id": conv.get("id", ""),
+                            "sender_name": sender.get("name", ""),
+                            "sender_id": sender.get("id", ""),
+                            "content": msg.get("message", ""),
+                            "direction": "incoming",
+                            "created_at": msg.get("created_time", "")
+                        })
+            return {"success": True, "messages": messages}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def send_message(self, credentials: dict, user_id: str, text: str) -> dict:
+        try:
+            token = credentials.get("access_token", "")
+            ig_user_id = credentials.get("user_id", "")
+            human_delay()
+            typing_delay(text)
+            result = self._post_form(f"{ig_user_id}/messages", token, {
+                "recipient": json.dumps({"id": user_id}),
+                "message": json.dumps({"text": text})
+            })
+            if "error" in result:
+                return {"success": False, "error": result["error"].get("message", "Fehler")}
+            return {"success": True, "message_id": result.get("message_id", "")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def post_content(self, credentials: dict, content: str, media_path: str = None) -> dict:
+        try:
+            token = credentials.get("access_token", "")
+            platform = credentials.get("platform", "instagram")
+            human_delay(3.0, 10.0)
+            if platform == "instagram":
+                ig_user_id = credentials.get("user_id", "")
+                if not media_path:
+                    return {"success": False, "error": "Instagram erfordert ein Bild oder Video für Posts"}
+                container = self._post_form(f"{ig_user_id}/media", token, {
+                    "image_url": media_path, "caption": content
+                })
+                container_id = container.get("id")
+                if not container_id:
+                    return {"success": False, "error": "Media-Container konnte nicht erstellt werden"}
+                result = self._post_form(f"{ig_user_id}/media_publish", token, {"creation_id": container_id})
+                return {"success": True, "post_id": result.get("id", "")}
+            else:
+                result = self._post_form("me/feed", token, {"message": content})
+                if "error" in result:
+                    return {"success": False, "error": result["error"].get("message", "Fehler")}
+                return {"success": True, "post_id": result.get("id", "")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+_ig_legacy = InstagramHandler()
+_ig_graph  = InstagramGraphHandler()
+
+
+def _ig_handler(creds: dict):
+    """Route to Graph API handler if OAuth token present, else legacy instagrapi."""
+    return _ig_graph if creds.get("access_token") else _ig_legacy
+
+
 handlers = {
-    "instagram": InstagramHandler(),
-    "facebook": InstagramHandler(),  # Instagrapi handles both
+    "instagram": _ig_legacy,   # replaced per-call in handle_command
+    "facebook": _ig_legacy,    # replaced per-call in handle_command
     "whatsapp": WhatsAppHandler(),
     "linkedin": LinkedInHandler(),
     "twitter": TwitterHandler(),
@@ -576,7 +704,12 @@ def handle_command(command: dict) -> dict:
     params = command.get("params", {})
     
     try:
-        handler = handlers.get(platform)
+        # Instagram/Facebook: route to Graph API handler if OAuth token is present
+        if platform in ("instagram", "facebook"):
+            creds = params.get("credentials", {})
+            handler = _ig_handler(creds)
+        else:
+            handler = handlers.get(platform)
         if not handler:
             return {"success": False, "error": f"Unknown platform: {platform}"}
         
