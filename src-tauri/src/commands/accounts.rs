@@ -72,6 +72,8 @@ pub async fn add_account(
     let display_name = result["profile"]["name"]
         .as_str()
         .or_else(|| credentials.get("username").map(|s| s.as_str()))
+        .or_else(|| credentials.get("email").map(|s| s.as_str()))
+        .or_else(|| credentials.get("phone").map(|s| s.as_str()))
         .unwrap_or(&platform)
         .to_string();
     let username = result["profile"]["username"]

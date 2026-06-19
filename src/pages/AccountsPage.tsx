@@ -385,16 +385,22 @@ export default function AccountsPage() {
       });
     } catch (e: any) {
       const msg = String(e);
-      let friendly = msg.slice(0, 150);
+      let friendly = msg.slice(0, 200);
       if (msg.includes("challenge_required") || msg.includes("checkpoint"))
         friendly = "Instagram erfordert Sicherheitsüberprüfung. Bitte im Browser einloggen und erneut versuchen.";
-      else if (msg.includes("bad_password") || msg.includes("Invalid") || msg.includes("wrong"))
+      else if (msg.includes("App-Passwort") || msg.includes("App-Passwörter"))
+        friendly = msg; // already friendly from Python
+      else if (msg.includes("AUTHENTICATIONFAILED") || msg.includes("Invalid credentials"))
+        friendly = "Falsches Passwort. Bei Gmail bitte ein App-Passwort verwenden (Google-Konto → Sicherheit → App-Passwörter).";
+      else if (msg.includes("bad_password") || msg.includes("wrong password"))
         friendly = "Falsches Passwort oder Benutzername.";
       else if (msg.includes("two_factor") || msg.includes("2FA"))
         friendly = "Zwei-Faktor aktiv — bitte App-Passwort verwenden.";
       else if (msg.includes("rate") || msg.includes("429"))
         friendly = "Zu viele Versuche. Bitte 10 Minuten warten.";
-      toast.error(friendly);
+      else if (msg.includes("Connection refused") || msg.includes("Network"))
+        friendly = "Verbindung fehlgeschlagen. Bitte Serveradresse und Internetverbindung prüfen.";
+      toast.error(friendly, { duration: 6000 });
       setConnecting(null);
     }
   };

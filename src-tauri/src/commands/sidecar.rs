@@ -26,7 +26,7 @@ pub fn call_python(command: Value) -> Result<Value, String> {
         Command::new(exe)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Sidecar konnte nicht gestartet werden: {}", e))?
     } else {
@@ -60,7 +60,7 @@ pub fn call_python(command: Value) -> Result<Value, String> {
             .arg(&sidecar_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Python konnte nicht gestartet werden: {}", e))?
     };
@@ -78,10 +78,29 @@ pub fn call_python(command: Value) -> Result<Value, String> {
         .map_err(|e| e.to_string())?;
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let first_line = stdout_str.lines().next().unwrap_or("{}");
+    let stderr_str = String::from_utf8_lossy(&output.stderr);
+    let first_line = stdout_str.lines().next().unwrap_or("").trim();
+
+    if first_line.is_empty() {
+        // Python crashed before printing — surface stderr for diagnosis
+        let err_detail = stderr_str
+            .lines()
+            // skip INFO-level logging lines
+            .filter(|l| !l.contains("INFO") && !l.contains("Human delay"))
+            .collect::<Vec<_>>()
+            .join(" | ");
+        let msg = if err_detail.is_empty() {
+            "Sidecar gab keine Antwort (leerer stdout)".to_string()
+        } else {
+            // Take last 300 chars to avoid flooding toast
+            let trimmed = if err_detail.len() > 300 { &err_detail[err_detail.len() - 300..] } else { &err_detail };
+            format!("Sidecar-Fehler: {}", trimmed)
+        };
+        return Err(msg);
+    }
 
     serde_json::from_str(first_line)
-        .map_err(|e| format!("Ungültige JSON-Antwort vom Sidecar: {}", e))
+        .map_err(|e| format!("Ungültige JSON-Antwort: {} — Zeile: {}", e, &first_line[..first_line.len().min(120)]))
 }
 
 // ── Tauri commands ──────────────────────────────────────────────────────────

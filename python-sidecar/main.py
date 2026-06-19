@@ -421,10 +421,26 @@ class EmailHandler:
     def connect(self, credentials: dict) -> dict:
         try:
             import imaplib
-            imap = imaplib.IMAP4_SSL(credentials["imap_host"], int(credentials.get("imap_port", 993)))
-            imap.login(credentials["email"], credentials["password"])
+            host = credentials.get("imap_host", "imap.gmail.com")
+            port = int(credentials.get("imap_port", 993))
+            email_addr = credentials["email"]
+            password = credentials["password"]
+
+            imap = imaplib.IMAP4_SSL(host, port)
+            imap.login(email_addr, password)
             imap.logout()
-            return {"success": True}
+            return {
+                "success": True,
+                "profile": {"name": email_addr, "username": email_addr}
+            }
+        except imaplib.IMAP4.error as e:
+            err = str(e)
+            if "AUTHENTICATIONFAILED" in err or "Invalid credentials" in err:
+                hint = ""
+                if "gmail" in credentials.get("imap_host", "").lower():
+                    hint = " → Bei Gmail: App-Passwort verwenden (Google-Konto → Sicherheit → App-Passwörter)"
+                return {"success": False, "error": f"Falsches Passwort oder Benutzername.{hint}"}
+            return {"success": False, "error": f"IMAP-Fehler: {err}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
     
