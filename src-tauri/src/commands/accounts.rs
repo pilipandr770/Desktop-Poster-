@@ -51,11 +51,31 @@ pub async fn add_account(
     platform: String,
     credentials: HashMap<String, String>,
 ) -> Result<Account, String> {
+    // For email: pre-resolve IMAP/SMTP hostnames in Rust (Tauri has DNS access)
+    // and inject resolved IPs so Python subprocess doesn't need DNS.
+    let mut enriched = credentials.clone();
+    if platform == "email" {
+        if let Some(imap_host) = credentials.get("imap_host") {
+            if let Ok(mut addrs) = tokio::net::lookup_host(format!("{}:993", imap_host)).await {
+                if let Some(addr) = addrs.next() {
+                    enriched.insert("imap_host_ip".to_string(), addr.ip().to_string());
+                }
+            }
+        }
+        if let Some(smtp_host) = credentials.get("smtp_host") {
+            if let Ok(mut addrs) = tokio::net::lookup_host(format!("{}:465", smtp_host)).await {
+                if let Some(addr) = addrs.next() {
+                    enriched.insert("smtp_host_ip".to_string(), addr.ip().to_string());
+                }
+            }
+        }
+    }
+
     // Call Python sidecar to verify the connection
     let cmd = serde_json::json!({
         "action": "connect",
         "platform": platform,
-        "params": { "credentials": credentials }
+        "params": { "credentials": enriched }
     });
 
     let result = crate::commands::sidecar::call_python(cmd)?;

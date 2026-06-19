@@ -23,11 +23,17 @@ pub fn call_python(command: Value) -> Result<Value, String> {
 
     let mut child = if let Some(ref exe) = bundled_exe {
         // Production path: compiled sidecar binary, no Python needed
-        Command::new(exe)
-            .stdin(Stdio::piped())
+        let mut cmd = Command::new(exe);
+        cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn()
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUNBUFFERED", "1");
+        for key in &["SYSTEMROOT", "WINDIR", "USERPROFILE", "APPDATA",
+                     "LOCALAPPDATA", "TEMP", "TMP", "PATH"] {
+            if let Ok(val) = std::env::var(key) { cmd.env(key, val); }
+        }
+        cmd.spawn()
             .map_err(|e| format!("Sidecar konnte nicht gestartet werden: {}", e))?
     } else {
         // Dev path: run main.py via Python interpreter
@@ -56,16 +62,26 @@ pub fn call_python(command: Value) -> Result<Value, String> {
                 if cfg!(windows) { "python".into() } else { "python3".into() }
             });
 
-        Command::new(&python_bin)
-            .arg(&sidecar_path)
+        // Build command with full inherited environment
+        // Windows DNS (WinSock) requires SYSTEMROOT to be set in the process env
+        let mut cmd = Command::new(&python_bin);
+        cmd.arg(&sidecar_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            // Inherit full environment so Python's socket/SSL stack
-            // gets SYSTEMROOT, APPDATA, etc. (needed for Windows DNS)
             .env("PYTHONIOENCODING", "utf-8")
-            .env("PYTHONUNBUFFERED", "1")
-            .spawn()
+            .env("PYTHONUNBUFFERED", "1");
+
+        // Explicitly forward critical Windows env vars for network / SSL
+        for key in &["SYSTEMROOT", "WINDIR", "USERPROFILE", "APPDATA",
+                     "LOCALAPPDATA", "TEMP", "TMP", "PATH",
+                     "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE"] {
+            if let Ok(val) = std::env::var(key) {
+                cmd.env(key, val);
+            }
+        }
+
+        cmd.spawn()
             .map_err(|e| format!("Python konnte nicht gestartet werden: {}", e))?
     };
 

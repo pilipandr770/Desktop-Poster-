@@ -425,33 +425,27 @@ class EmailHandler:
         port = int(credentials.get("imap_port", 993))
         email_addr = credentials["email"]
         password = credentials["password"]
-        try:
-            # DNS check first — gives clearer error than SSL timeout
-            socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        except OSError:
-            # DNS failed in subprocess context — try well-known IPs as fallback
-            KNOWN_IPS = {
-                "imap.gmail.com": "64.233.166.109",
-                "smtp.gmail.com": "64.233.167.108",
-                "outlook.office365.com": "40.101.4.130",
-                "imap.mail.yahoo.com": "77.238.178.109",
-            }
-            # If we know a fallback IP, continue — IMAP_SSL will use it
-            if host not in KNOWN_IPS:
+        # Use pre-resolved IP from Rust if available (avoids DNS in subprocess)
+        resolved_ip = credentials.get("imap_host_ip")
+        if resolved_ip:
+            _orig_getaddrinfo = socket.getaddrinfo
+            def _patched(*args, **kwargs):
+                if args[0] == host:
+                    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (resolved_ip, port))]
+                return _orig_getaddrinfo(*args, **kwargs)
+            socket.getaddrinfo = _patched
+        else:
+            # Try DNS; if it fails, give a clear error
+            try:
+                socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+            except OSError as e:
                 return {
                     "success": False,
                     "error": (
                         f"DNS-Auflösung fehlgeschlagen für '{host}'. "
-                        "Bitte Internetverbindung und Serveradresse prüfen."
+                        f"Bitte Internetverbindung prüfen. ({e})"
                     )
                 }
-            # Monkey-patch socket to return known IP
-            _orig_getaddrinfo = socket.getaddrinfo
-            def _patched(*args, **kwargs):
-                if args[0] == host:
-                    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (KNOWN_IPS[host], port))]
-                return _orig_getaddrinfo(*args, **kwargs)
-            socket.getaddrinfo = _patched
         try:
             imap = imaplib.IMAP4_SSL(host, port)
             imap.login(email_addr, password)
