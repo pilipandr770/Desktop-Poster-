@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 
 const META_APP_ID: &str = "1696429314893660";
@@ -59,16 +60,12 @@ pub async fn start_meta_oauth(
     );
 
     // Open system browser
-    let shell = app.shell();
-    tauri_plugin_shell::open(&shell, &oauth_url, None).map_err(|e| e.to_string())?;
+    app.opener().open_url(&oauth_url, None::<&str>).map_err(|e| e.to_string())?;
 
     // Wait for OAuth redirect on localhost:8080 (blocking, in spawn_blocking)
     let code = tokio::task::spawn_blocking(move || -> Result<String, String> {
         let listener = TcpListener::bind("127.0.0.1:8080")
             .map_err(|e| format!("Port 8080 belegt: {}", e))?;
-        listener
-            .set_read_timeout(Some(std::time::Duration::from_secs(300)))
-            .ok();
 
         let (mut stream, _) = listener.accept().map_err(|e| e.to_string())?;
 
