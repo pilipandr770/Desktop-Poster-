@@ -169,3 +169,39 @@ pub async fn post_content(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn fetch_account_posts(
+    db: State<'_, AppDb>,
+    account_id: String,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    let (platform, credentials) = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        let platform: String = conn
+            .query_row(
+                "SELECT platform FROM accounts WHERE id = ?1",
+                params![account_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Konto nicht gefunden: {}", e))?;
+        let creds_json: String = conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?1",
+                params![format!("creds_{}", account_id)],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Zugangsdaten nicht gefunden: {}", e))?;
+        let creds: std::collections::HashMap<String, String> =
+            serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
+        (platform, creds)
+    };
+
+    let cmd = serde_json::json!({
+        "action": "get_posts",
+        "platform": platform,
+        "params": { "credentials": credentials, "limit": limit.unwrap_or(10) }
+    });
+
+    crate::commands::sidecar::call_python(cmd)
+}

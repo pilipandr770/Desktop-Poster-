@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Repeat, Wand2, Clock } from "lucide-react";
+import { Repeat, Wand2, Clock, GitBranch } from "lucide-react";
 import MirrorPost from "../components/Crosspost/MirrorPost";
 import AICreatePost from "../components/Crosspost/AICreatePost";
 import PostHistory from "../components/Crosspost/PostHistory";
+import PipelinePost from "../components/Crosspost/PipelinePost";
 
-type Mode = "mirror" | "ai" | "history";
+type Mode = "mirror" | "ai" | "pipeline" | "history";
 
 export default function CrosspostPage() {
   const [mode, setMode] = useState<Mode>("mirror");
@@ -27,9 +28,10 @@ export default function CrosspostPage() {
           gap: 2,
         }}>
           {([
-            { id: "mirror",  icon: Repeat,  label: "Spiegeln"     },
-            { id: "ai",      icon: Wand2,   label: "KI erstellen" },
-            { id: "history", icon: Clock,   label: "Verlauf"      },
+            { id: "mirror",   icon: Repeat,      label: "Spiegeln"     },
+            { id: "ai",       icon: Wand2,       label: "KI erstellen" },
+            { id: "pipeline", icon: GitBranch,   label: "Pipeline"     },
+            { id: "history",  icon: Clock,       label: "Verlauf"      },
           ] as const).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -60,9 +62,10 @@ export default function CrosspostPage() {
       {/* Content */}
       <div className="page-body">
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
-          {mode === "mirror"  && <MirrorPost />}
-          {mode === "ai"      && <AICreatePost />}
-          {mode === "history" && <PostHistory />}
+          {mode === "mirror"   && <MirrorPost />}
+          {mode === "ai"       && <AICreatePost />}
+          {mode === "pipeline" && <PipelinePost />}
+          {mode === "history"  && <PostHistory />}
         </div>
       </div>
     </div>

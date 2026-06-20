@@ -91,6 +91,23 @@ class InstagramHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_posts(self, session: dict = None, credentials: dict = None, limit: int = 10) -> dict:
+        try:
+            data = session or credentials or {}
+            cl = self._client(data)
+            medias = cl.user_medias(cl.user_id, amount=limit)
+            posts = []
+            for m in medias:
+                posts.append({
+                    "id": str(m.id),
+                    "text": m.caption_text or "",
+                    "media_url": str(m.thumbnail_url or "") if hasattr(m, "thumbnail_url") else "",
+                    "created_at": str(m.taken_at) if hasattr(m, "taken_at") else "",
+                })
+            return {"success": True, "posts": posts}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def get_messages(self, session: dict, limit: int = 20) -> dict:
         try:
             cl = self._client(session)
@@ -281,6 +298,35 @@ class LinkedInHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def get_posts(self, credentials: dict, limit: int = 10) -> dict:
+        try:
+            api = self._get_api(credentials)
+            profile = api.get_profile()
+            public_id = profile.get("publicIdentifier", "")
+            raw = api.get_profile_posts(public_id=public_id, post_count=limit)
+            posts = []
+            for p in raw:
+                # Extract text from various LinkedIn post structures
+                text = ""
+                comm = p.get("commentary", {})
+                if isinstance(comm, dict):
+                    text = comm.get("text", {}).get("text", "") if isinstance(comm.get("text"), dict) else str(comm.get("text", ""))
+                elif isinstance(comm, str):
+                    text = comm
+                if not text:
+                    text = (p.get("specificContent", {})
+                              .get("com.linkedin.ugc.ShareContent", {})
+                              .get("shareCommentaryV2", {})
+                              .get("text", ""))
+                posts.append({
+                    "id": p.get("urn", str(len(posts))),
+                    "text": text.strip() or "[Kein Text]",
+                    "created_at": str(p.get("created", {}).get("time", "")),
+                })
+            return {"success": True, "posts": posts}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def post_content(self, credentials: dict, content: str) -> dict:
         try:
             api = self._get_api(credentials)
@@ -341,6 +387,10 @@ class TwitterHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def get_posts(self, credentials: dict, limit: int = 10) -> dict:
+        # Twitter Free tier doesn't allow reading tweets via API
+        return {"success": False, "error": "Twitter Free Tier erlaubt kein Lesen von Tweets. Bitte LinkedIn oder Instagram als Quelle verwenden."}
+
     def post_content(self, credentials: dict, content: str) -> dict:
         try:
             import tweepy

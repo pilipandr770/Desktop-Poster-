@@ -159,6 +159,7 @@ fn main() {
             commands::posts::create_scheduled_post,
             commands::posts::cancel_scheduled_post,
             commands::posts::post_content,
+            commands::posts::fetch_account_posts,
             // Settings
             commands::settings::get_settings,
             commands::settings::update_settings,
