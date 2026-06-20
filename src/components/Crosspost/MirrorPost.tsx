@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { Send, Loader, Image, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Send, Loader, Image, X, CheckCircle, AlertCircle, Clock, Calendar } from "lucide-react";
 import { useAccountsStore } from "../../store/accounts";
 import toast from "react-hot-toast";
 
@@ -18,6 +18,13 @@ const COLORS: Record<string, string> = {
 const LIMITS: Record<string, number> = { twitter: 280, instagram: 2200, linkedin: 3000 };
 
 type PostStatus = "idle" | "posting" | "done" | "error";
+type PostMode = "now" | "schedule";
+
+// Returns "YYYY-MM-DDTHH:MM" in local time for datetime-local input
+function localDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export default function MirrorPost() {
   const accounts = useAccountsStore((s) => s.accounts);
@@ -28,12 +35,42 @@ export default function MirrorPost() {
   const [mediaPath, setMediaPath] = useState("");
   const [posting, setPosting]     = useState(false);
   const [results, setResults]     = useState<Record<string, PostStatus>>({});
+  const [postMode, setPostMode]   = useState<PostMode>("now");
+  // Default scheduled time: tomorrow at 10:00
+  const defaultScheduled = () => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
+    return localDatetimeValue(d);
+  };
+  const [scheduledAt, setScheduledAt] = useState<string>(defaultScheduled());
 
   const toggle = (id: string) =>
     setTargets((p) => p.includes(id) ? p.filter((a) => a !== id) : [...p, id]);
 
   const handlePost = async () => {
     if (!content.trim() || targets.length === 0) return;
+
+    if (postMode === "schedule") {
+      // Schedule post
+      const isoAt = new Date(scheduledAt).toISOString();
+      const platforms = [...new Set(targets.map(id => accounts.find(a => a.id === id)?.platform).filter(Boolean) as string[])];
+      try {
+        await invoke("create_scheduled_post", {
+          content,
+          platforms,
+          accountIds: targets,
+          scheduledAt: isoAt,
+        });
+        toast.success(`Geplant für ${new Date(scheduledAt).toLocaleString("de-DE")}`);
+        setContent("");
+        setTargets([]);
+        setResults({});
+      } catch (e: any) {
+        toast.error(`Planungsfehler: ${e}`);
+      }
+      return;
+    }
+
+    // Post now
     setPosting(true);
     setResults(Object.fromEntries(targets.map((id) => [id, "posting"])));
 
@@ -189,6 +226,60 @@ export default function MirrorPost() {
         )}
       </div>
 
+      {/* Jetzt / Planen switcher */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{
+          display: "flex",
+          background: "var(--surface0)",
+          borderRadius: 10,
+          padding: 3,
+          gap: 2,
+          alignSelf: "flex-start",
+        }}>
+          {([
+            { id: "now",      icon: Send,     label: "Jetzt" },
+            { id: "schedule", icon: Calendar, label: "Planen" },
+          ] as const).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setPostMode(id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 8, fontSize: 13,
+                fontWeight: postMode === id ? 600 : 400,
+                background: postMode === id ? "var(--base)" : "transparent",
+                color: postMode === id ? "var(--text)" : "var(--overlay1)",
+                border: "none", cursor: "pointer",
+                boxShadow: postMode === id ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
+                transition: "all 0.15s",
+              }}
+            >
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {postMode === "schedule" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Clock size={14} style={{ color: "var(--overlay1)", flexShrink: 0 }} />
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              min={localDatetimeValue(new Date())}
+              style={{
+                background: "var(--surface0)",
+                border: "1px solid var(--surface1)",
+                borderRadius: 8,
+                color: "var(--text)",
+                padding: "7px 12px",
+                fontSize: 13,
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Post button */}
       <button
         onClick={handlePost}
@@ -196,12 +287,14 @@ export default function MirrorPost() {
         className="btn btn-primary btn-lg"
         style={{ alignSelf: "flex-start" }}
       >
-        {posting ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
+        {posting ? <Loader size={16} className="animate-spin" /> : postMode === "schedule" ? <Calendar size={16} /> : <Send size={16} />}
         {posting
           ? `Veröffentliche auf ${targets.length} Plattformen…`
           : targets.length === 0
             ? "Plattformen auswählen"
-            : `Auf ${targets.length} Plattform${targets.length > 1 ? "en" : ""} veröffentlichen`}
+            : postMode === "schedule"
+              ? `Planen auf ${targets.length} Plattform${targets.length > 1 ? "en" : ""}`
+              : `Auf ${targets.length} Plattform${targets.length > 1 ? "en" : ""} veröffentlichen`}
       </button>
     </div>
   );

@@ -174,7 +174,8 @@ fn main() {
             commands::whatsapp::stop_whatsapp_sidecar,
             commands::whatsapp::whatsapp_call,
             commands::whatsapp::check_nodejs,
-            commands::whatsapp::install_nodejs,
+            commands::whatsapp::download_nodejs,
+            commands::whatsapp::setup_whatsapp_deps,
             // Meta OAuth
             commands::oauth::start_meta_oauth,
             // Updater

@@ -3,12 +3,22 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+const LICENSE_SERVER: &str = "https://license.crosspost-desktop.de/verify";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LicenseStatus {
     pub is_valid: bool,
     pub plan: Option<String>,
     pub valid_until: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ServerResponse {
+    valid: bool,
+    plan: Option<String>,
+    valid_until: Option<String>,
+    message: Option<String>,
 }
 
 #[tauri::command]
@@ -50,10 +60,7 @@ pub async fn check_license(db: State<'_, AppDb>) -> Result<LicenseStatus, String
                 .map(|dt| dt.with_timezone(&chrono::Utc) > chrono::Utc::now())
                 .unwrap_or(false);
 
-            let plan_label = plan
-                .as_deref()
-                .unwrap_or("Solo")
-                .to_uppercase();
+            let plan_label = plan.as_deref().unwrap_or("Solo").to_uppercase();
 
             Ok(LicenseStatus {
                 message: if is_valid {
@@ -79,10 +86,29 @@ pub async fn activate_license(
         return Err("Ungültiger Lizenzschlüssel".to_string());
     }
 
-    // TODO: Verify token against license server (https://license.crosspost-desktop.de/verify)
-    // For now: accept any non-empty token → Solo plan, 1 year validity
-    let plan = determine_plan_from_token(&token);
-    let valid_until = (chrono::Utc::now() + chrono::Duration::days(365)).to_rfc3339();
+    // Try online verification first
+    let server_result = verify_with_server(&token).await;
+
+    let (plan, valid_until) = match server_result {
+        Ok(resp) if resp.valid => {
+            let plan = resp.plan.unwrap_or_else(|| determine_plan_from_token(&token).to_string());
+            let valid_until = resp.valid_until.unwrap_or_else(|| {
+                (chrono::Utc::now() + chrono::Duration::days(365)).to_rfc3339()
+            });
+            (plan, valid_until)
+        }
+        Ok(_) => {
+            // Server responded but token invalid
+            return Err("Lizenzschlüssel ungültig oder abgelaufen. Bitte prüfen Sie Ihren Schlüssel.".to_string());
+        }
+        Err(_) => {
+            // Server unreachable — accept token offline, use prefix heuristic
+            // This allows activation without internet during demo/trial
+            let plan = determine_plan_from_token(&token).to_string();
+            let valid_until = (chrono::Utc::now() + chrono::Duration::days(30)).to_rfc3339();
+            (plan, valid_until)
+        }
+    };
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
@@ -94,13 +120,31 @@ pub async fn activate_license(
 
     Ok(LicenseStatus {
         is_valid: true,
-        plan: Some(plan.to_string()),
+        plan: Some(plan.clone()),
         valid_until: Some(valid_until),
-        message: format!("Lizenz erfolgreich aktiviert! Plan: {}", plan.to_uppercase()),
+        message: format!("Lizenz aktiviert! Plan: {}", plan.to_uppercase()),
     })
 }
 
-/// Simple heuristic until real server verification is implemented.
+async fn verify_with_server(token: &str) -> Result<ServerResponse, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post(LICENSE_SERVER)
+        .json(&serde_json::json!({ "token": token }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json::<ServerResponse>()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(resp)
+}
+
 fn determine_plan_from_token(token: &str) -> &'static str {
     if token.starts_with("AGENCY-") {
         "agency"

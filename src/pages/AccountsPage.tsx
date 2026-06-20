@@ -17,12 +17,12 @@ import toast from "react-hot-toast";
 
 // ── WhatsApp QR flow ─────────────────────────────────────────────────────────
 function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void }) {
-  const [step, setStep] = useState<"idle" | "checking" | "no-node" | "installing" | "starting" | "qr" | "connected" | "error">("checking");
+  const [step, setStep] = useState<"idle" | "checking" | "no-node" | "downloading" | "setup-deps" | "starting" | "qr" | "connected" | "error">("checking");
   const [nodeVersion, setNodeVersion] = useState<string | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const [installMethod, setInstallMethod] = useState<"winget" | "browser" | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check Node.js on mount
@@ -40,9 +40,11 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
   const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
 
   const startConnect = async () => {
-    setStep("starting");
+    setStep("setup-deps");
     setErrorMsg("");
     try {
+      await invoke("setup_whatsapp_deps");
+      setStep("starting");
       await invoke("start_whatsapp_sidecar");
       // wait a moment for server to start
       await new Promise(r => setTimeout(r, 1500));
@@ -83,13 +85,17 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
   useEffect(() => () => stopPoll(), []);
 
   const installNode = async () => {
-    setStep("installing");
+    setStep("downloading");
+    setDownloadProgress("Node.js wird heruntergeladen (~30 MB)…");
     try {
-      const method = await invoke<string>("install_nodejs");
-      setInstallMethod(method === "winget" ? "winget" : "browser");
-    } catch (e) {
+      await invoke<string>("download_nodejs");
+      setDownloadProgress("Fertig!");
+      const ver = await invoke<string | null>("check_nodejs");
+      if (ver) { setNodeVersion(ver); setStep("idle"); }
+      else setStep("no-node");
+    } catch (e: any) {
       setStep("no-node");
-      toast.error("Installation fehlgeschlagen. Bitte manuell installieren: nodejs.org");
+      toast.error("Download fehlgeschlagen: " + String(e).slice(0, 80));
     }
   };
 
@@ -98,7 +104,7 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
     try {
       const ver = await invoke<string | null>("check_nodejs");
       if (ver) { setNodeVersion(ver); setStep("idle"); }
-      else setStep(installMethod ? "installing" : "no-node");
+      else setStep("no-node");
     } catch {
       setStep("no-node");
     }
@@ -117,39 +123,54 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
         <div>
           <p style={{ color: "var(--yellow)", fontWeight: 600, fontSize: 13 }}>Node.js nicht gefunden</p>
           <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 2 }}>
-            WhatsApp benötigt Node.js (kostenlos, von nodejs.org).
+            WhatsApp benötigt Node.js. Wird automatisch heruntergeladen.
           </p>
         </div>
       </div>
       <button onClick={installNode}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #25D366, #128C7E)", color: "white", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 15px #25D36640", marginBottom: 8 }}>
-        <Plus size={15} /> Node.js automatisch installieren
+        <Plus size={15} /> Node.js automatisch installieren (~30 MB)
+      </button>
+      <button onClick={recheckNode}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "8px 0", borderRadius: 8, background: "var(--surface0)", color: "var(--subtext1)", border: "none", cursor: "pointer", fontSize: 12, marginBottom: 6 }}>
+        <RefreshCw size={12} /> Bereits installiert? Erneut prüfen
       </button>
       <p style={{ color: "var(--overlay0)", fontSize: 11, textAlign: "center" }}>
-        Verwendet Windows winget — oder öffnet nodejs.org als Fallback
+        Nach manueller Installation: App neu starten, dann "Erneut prüfen"
       </p>
     </div>
   );
 
-  if (step === "installing") return (
+  if (step === "downloading") return (
     <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px", borderRadius: 10, background: "var(--blue)12", border: "1px solid var(--blue)30" }}>
-        <ExternalLink size={16} style={{ color: "var(--blue)", marginTop: 1, flexShrink: 0 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px", borderRadius: 10, background: "var(--green)12", border: "1px solid var(--green)30" }}>
+        <Loader size={16} className="animate-spin" style={{ color: "var(--green)", flexShrink: 0 }} />
         <div>
-          <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13 }}>Browser geöffnet → nodejs.org</p>
-          <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 3 }}>
-            Node.js LTS herunterladen, installieren, dann hier auf "Prüfen" klicken.
-          </p>
+          <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13 }}>Node.js wird installiert…</p>
+          <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 3 }}>{downloadProgress}</p>
         </div>
       </div>
-      <button onClick={recheckNode}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 0", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "1px solid var(--surface1)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-        <RefreshCw size={13} /> Node.js prüfen
-      </button>
-      <button onClick={() => setStep("no-node")}
-        style={{ fontSize: 11, color: "var(--overlay0)", background: "none", border: "none", cursor: "pointer" }}>
-        Abbrechen
-      </button>
+      <p style={{ color: "var(--overlay0)", fontSize: 11, textAlign: "center" }}>
+        Bitte warten — kein Browser, kein Passwort erforderlich.
+      </p>
+    </div>
+  );
+
+  if (step === "setup-deps") return (
+    <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px", borderRadius: 10, background: "var(--green)12", border: "1px solid var(--green)30" }}>
+        <Loader size={16} className="animate-spin" style={{ color: "var(--green)", flexShrink: 0 }} />
+        <div>
+          <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13 }}>WhatsApp-Pakete werden installiert…</p>
+          <p style={{ color: "var(--overlay1)", fontSize: 12, marginTop: 3 }}>Einmalig ~1-2 Minuten, danach sofort bereit.</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (step === "starting") return (
+    <div style={{ padding: "14px", display: "flex", alignItems: "center", gap: 10, color: "var(--subtext0)", fontSize: 13 }}>
+      <Loader size={14} className="animate-spin" /> WhatsApp wird gestartet…
     </div>
   );
 
@@ -291,6 +312,7 @@ const PLATFORMS = [
     ],
     note: "Verwendet inoffizielles API — kein offizieller Key nötig",
     helpLinks: [],
+    useLinkedInCookie: true,
   },
   {
     id: "twitter" as Platform,
@@ -344,6 +366,127 @@ const PLATFORMS = [
   },
 ];
 
+// ── LinkedIn Connect Component ───────────────────────────────────────────────
+
+function LinkedInConnect({
+  isConnecting,
+  color,
+  gradient,
+  onConnect,
+}: {
+  isConnecting: boolean;
+  color: string;
+  gradient: string;
+  onConnect: (creds: Record<string, string>) => void;
+}) {
+  const [mode, setMode] = useState<"password" | "cookie">("cookie");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [liAt, setLiAt] = useState("");
+  const [jsessionId, setJsessionId] = useState("");
+
+  const handleSubmit = () => {
+    if (mode === "cookie") {
+      if (!liAt.trim()) { toast.error("Bitte li_at Cookie eingeben"); return; }
+      const creds: Record<string,string> = { li_at: liAt.trim() };
+      if (jsessionId.trim()) creds.jsessionid = jsessionId.trim();
+      onConnect(creds);
+    } else {
+      if (!email.trim() || !password.trim()) { toast.error("Bitte E-Mail und Passwort eingeben"); return; }
+      onConnect({ email: email.trim(), password: password.trim() });
+    }
+  };
+
+  return (
+    <div className="px-4 pb-4 space-y-3" style={{ background: "var(--mantle)" }}>
+      <div style={{ height: 1, background: "var(--surface0)" }} />
+
+      {/* Mode switcher */}
+      <div className="flex gap-2">
+        {(["cookie", "password"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: mode === m ? color : "var(--surface0)",
+              color: mode === m ? "white" : "var(--overlay1)",
+              border: `1px solid ${mode === m ? color : "var(--surface1)"}`,
+            }}
+          >
+            {m === "cookie" ? "🍪 Browser-Cookie (empfohlen)" : "🔑 E-Mail / Passwort"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "cookie" ? (
+        <>
+          <div className="text-xs py-2 px-3 rounded-lg space-y-1"
+            style={{ background: "var(--blue)15", color: "var(--blue)", borderLeft: "3px solid var(--blue)" }}>
+            <p className="font-semibold">So erhalten Sie den Cookie:</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-xs" style={{ color: "var(--subtext0)" }}>
+              <li>Öffnen Sie <strong>linkedin.com</strong> im Browser und melden Sie sich an</li>
+              <li>Drücken Sie <strong>F12</strong> → Tab <strong>Application</strong> (Chrome) oder <strong>Storage</strong> (Firefox)</li>
+              <li>Klicken Sie auf <strong>Cookies → linkedin.com</strong></li>
+              <li>Kopieren Sie den Wert von <strong>li_at</strong></li>
+            </ol>
+          </div>
+          {[
+            { label: "li_at Cookie-Wert", placeholder: "AQE...", val: liAt, set: setLiAt },
+            { label: "JSESSIONID Cookie-Wert", placeholder: 'ajax:123456789...', val: jsessionId, set: setJsessionId },
+          ].map((f) => (
+            <div key={f.label}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>{f.label}</label>
+              <input
+                type="password"
+                placeholder={f.placeholder}
+                value={f.val}
+                onChange={(e) => f.set(e.target.value)}
+                style={{ background: "var(--surface0)", border: "1px solid var(--surface1)", borderRadius: 8, padding: "8px 12px", color: "var(--text)", width: "100%", fontSize: 13, outline: "none" }}
+                onFocus={(e) => (e.target.style.borderColor = color)}
+                onBlur={(e) => (e.target.style.borderColor = "var(--surface1)")}
+              />
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          <div className="text-xs py-2 px-3 rounded-lg"
+            style={{ background: "var(--yellow)15", color: "var(--yellow)", borderLeft: "3px solid var(--yellow)" }}>
+            LinkedIn blockiert manchmal automatische Logins. Bei Fehler bitte Browser-Cookie verwenden.
+          </div>
+          {[
+            { key: "email", label: "E-Mail", type: "text", placeholder: "email@example.com", val: email, set: setEmail },
+            { key: "password", label: "Passwort", type: "password", placeholder: "LinkedIn-Passwort", val: password, set: setPassword },
+          ].map((f) => (
+            <div key={f.key}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>{f.label}</label>
+              <input
+                type={f.type}
+                placeholder={f.placeholder}
+                value={f.val}
+                onChange={(e) => f.set(e.target.value)}
+                style={{ background: "var(--surface0)", border: "1px solid var(--surface1)", borderRadius: 8, padding: "8px 12px", color: "var(--text)", width: "100%", fontSize: 13, outline: "none" }}
+                onFocus={(e) => (e.target.style.borderColor = color)}
+                onBlur={(e) => (e.target.style.borderColor = "var(--surface1)")}
+              />
+            </div>
+          ))}
+        </>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={isConnecting}
+        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+        style={{ background: gradient, color: "white", boxShadow: isConnecting ? "none" : `0 4px 15px ${color}40` }}
+      >
+        {isConnecting ? <><Loader size={15} className="animate-spin" /> Verbinde…</> : <><Plus size={15} /> Verbinden</>}
+      </button>
+    </div>
+  );
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function AccountsPage() {
@@ -353,9 +496,11 @@ export default function AccountsPage() {
   const [expanded, setExpanded] = useState<Platform | null>("instagram");
 
   // Telegram two-step OTP flow
-  const [tgStep, setTgStep] = useState<"idle" | "code_sent">("idle");
+  const [tgStep, setTgStep] = useState<"idle" | "code_sent" | "2fa">("idle");
   const [tgCodeHash, setTgCodeHash] = useState("");
   const [tgCode, setTgCode] = useState("");
+  const [tg2fa, setTg2fa] = useState("");
+  const [tgCodeType, setTgCodeType] = useState("");
   const [tgVerifying, setTgVerifying] = useState(false);
 
   useEffect(() => { fetchAccounts(); }, []);
@@ -384,7 +529,14 @@ export default function AccountsPage() {
     }
     const creds: Record<string, string> = {};
     cfg.fields.forEach((f) => {
-      creds[f.key] = formData[`${platform}_${f.key}`]?.trim() || "";
+      // Primary: React state. Fallback: read from DOM input (handles clipboard paste in WebView2)
+      let val = formData[`${platform}_${f.key}`]?.trim() || "";
+      if (!val) {
+        const inp = document.querySelector<HTMLInputElement>(`input[placeholder="${f.placeholder}"]`);
+        val = inp?.value?.trim() || "";
+        if (val) setFormData((prev) => ({ ...prev, [`${platform}_${f.key}`]: val }));
+      }
+      creds[f.key] = val;
     });
 
     const empty = cfg.fields.find((f) => !creds[f.key]);
@@ -449,8 +601,10 @@ export default function AccountsPage() {
         setTgStep("idle");
       } else if (res.error === "code_required") {
         setTgCodeHash(res.phone_code_hash || "");
+        setTgCodeType(res.code_type || "");
         setTgStep("code_sent");
-        toast("📱 Code wurde per Telegram gesendet. Bitte eingeben.", { duration: 5000 });
+        const isSms = (res.code_type || "").includes("Sms");
+        toast(isSms ? "📱 Code wurde per SMS gesendet." : "📱 Code wurde in der Telegram-App gesendet — schauen Sie auf Ihrem Telefon nach.", { duration: 8000 });
       } else {
         toast.error(String(res.error).slice(0, 150));
       }
@@ -486,8 +640,45 @@ export default function AccountsPage() {
         setExpanded(null);
         setTgStep("idle");
         setTgCode("");
+        setTg2fa("");
+      } else if (res.error === "2fa_required") {
+        setTgStep("2fa");
+        toast("🔐 Zwei-Faktor-Passwort erforderlich.", { duration: 5000 });
       } else {
         toast.error(String(res.error || "Falscher Code").slice(0, 150));
+      }
+    } catch (e: any) {
+      toast.error(String(e).slice(0, 150));
+    } finally {
+      setTgVerifying(false);
+    }
+  };
+
+  const handleTelegram2FA = async () => {
+    const creds = {
+      phone: formData["telegram_phone"]?.trim() || "",
+      api_id: formData["telegram_api_id"]?.trim() || "",
+      api_hash: formData["telegram_api_hash"]?.trim() || "",
+    };
+    if (!tg2fa.trim()) { toast.error("Bitte das 2FA-Passwort eingeben"); return; }
+    try {
+      setTgVerifying(true);
+      const res = await invoke<any>("send_to_sidecar", {
+        command: {
+          action: "verify_2fa",
+          platform: "telegram",
+          params: { credentials: creds, password: tg2fa.trim() },
+        },
+      });
+      if (res.success) {
+        await addAccount("telegram", creds);
+        toast.success("✓ Telegram erfolgreich verbunden!");
+        setExpanded(null);
+        setTgStep("idle");
+        setTgCode("");
+        setTg2fa("");
+      } else {
+        toast.error(String(res.error || "Falsches Passwort").slice(0, 150));
       }
     } catch (e: any) {
       toast.error(String(e).slice(0, 150));
@@ -627,7 +818,26 @@ export default function AccountsPage() {
                   }} />
                 </div>
               )}
-              {isExpanded && platform.id !== "whatsapp" && platform.id !== "telegram" && (
+              {isExpanded && platform.id === "linkedin" && (
+                <LinkedInConnect
+                  isConnecting={isConnecting}
+                  color={platform.color}
+                  gradient={platform.gradient}
+                  onConnect={async (creds) => {
+                    try {
+                      setConnecting("linkedin");
+                      await addAccount("linkedin", creds);
+                      toast.success("✓ LinkedIn erfolgreich verbunden!");
+                      setExpanded(null);
+                    } catch (e: any) {
+                      toast.error(String(e).slice(0, 200), { duration: 7000 });
+                    } finally {
+                      setConnecting(null);
+                    }
+                  }}
+                />
+              )}
+              {isExpanded && platform.id !== "whatsapp" && platform.id !== "telegram" && platform.id !== "linkedin" && (
                 <div className="px-4 pb-4 space-y-3" style={{ background: "var(--mantle)" }}>
                   {/* Divider */}
                   <div style={{ height: 1, background: "var(--surface0)" }} />
@@ -666,7 +876,7 @@ export default function AccountsPage() {
                         <input
                           type={field.type}
                           placeholder={field.placeholder}
-                          value={formData[`${platform.id}_${field.key}`] || ""}
+                          defaultValue=""
                           onChange={(e) =>
                             setFormData((prev) => ({ ...prev, [`${platform.id}_${field.key}`]: e.target.value }))
                           }
@@ -771,9 +981,14 @@ export default function AccountsPage() {
                           Bestätigungscode wurde per Telegram gesendet!
                         </p>
                       </div>
+                      <p className="text-xs" style={{ color: "var(--overlay1)" }}>
+                        {tgCodeType.includes("Sms")
+                          ? "📩 Code wurde per SMS gesendet"
+                          : "📱 Öffnen Sie Telegram auf Ihrem Telefon → Chat von \"Telegram\" → 5-stelliger Zahlencode"}
+                      </p>
                       <div>
                         <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
-                          6-stelliger Code aus Telegram
+                          5-stelliger Code aus Telegram
                         </label>
                         <input
                           type="text"
@@ -799,6 +1014,46 @@ export default function AccountsPage() {
                           style={{ flex: 2, padding: "8px", borderRadius: 8, background: "linear-gradient(135deg, #2AABEE, #1a7bbf)", color: "white", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
                         >
                           {tgVerifying ? <><Loader size={13} className="animate-spin" /> Prüfe…</> : <><CheckCircle size={13} /> Bestätigen</>}
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {tgStep === "2fa" && (
+                    <>
+                      <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--blue)15", border: "1px solid var(--blue)40", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>🔐</span>
+                        <p style={{ color: "var(--blue)", fontSize: 13, fontWeight: 600 }}>
+                          Zwei-Faktor-Authentifizierung aktiv
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
+                          Telegram Cloud-Passwort (2FA)
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Ihr Telegram-Passwort"
+                          value={tg2fa}
+                          onChange={(e) => setTg2fa(e.target.value)}
+                          autoFocus
+                          style={{ background: "var(--surface0)", border: "2px solid #2AABEE", borderRadius: 8, padding: "10px 12px", color: "var(--text)", width: "100%", fontSize: 14, outline: "none" }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => { setTgStep("idle"); setTg2fa(""); }}
+                          style={{ flex: 1, padding: "8px", borderRadius: 8, background: "var(--surface0)", color: "var(--text)", border: "none", cursor: "pointer", fontSize: 13 }}
+                        >
+                          Zurück
+                        </button>
+                        <button
+                          onClick={handleTelegram2FA}
+                          disabled={tgVerifying || !tg2fa.trim()}
+                          className="flex items-center justify-center gap-2 disabled:opacity-50"
+                          style={{ flex: 2, padding: "8px", borderRadius: 8, background: "linear-gradient(135deg, #2AABEE, #1a7bbf)", color: "white", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                        >
+                          {tgVerifying ? <><Loader size={13} className="animate-spin" /> Prüfe…</> : <><CheckCircle size={13} /> Anmelden</>}
                         </button>
                       </div>
                     </>

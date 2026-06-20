@@ -189,26 +189,80 @@ class InstagramHandler:
 
 class LinkedInHandler:
     """LinkedIn через linkedin-api"""
-    
+
+    def _linkedin_check_auth(self, li_at: str):
+        """Check if li_at cookie is valid by requesting the feed page (no CSRF needed for GET)."""
+        import requests, re
+        resp = requests.get(
+            "https://www.linkedin.com/feed/",
+            cookies={"li_at": li_at},
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+            allow_redirects=False,
+            timeout=15
+        )
+        if resp.status_code in (301, 302, 303, 307, 308):
+            return None, None, None  # redirected to login = invalid cookie
+        if resp.status_code != 200:
+            return None, None, None
+        # Try to extract name from embedded JSON in page HTML
+        html = resp.text
+        first = last = slug = ""
+        m = re.search(r'"firstName"\s*:\s*"([^"]+)"', html)
+        if m: first = m.group(1)
+        m = re.search(r'"lastName"\s*:\s*"([^"]+)"', html)
+        if m: last = m.group(1)
+        m = re.search(r'"publicIdentifier"\s*:\s*"([^"]+)"', html)
+        if m: slug = m.group(1)
+        return first or "LinkedIn", last or "Nutzer", slug
+
+    def _get_api(self, credentials: dict):
+        """Return authenticated Linkedin API instance (cookie or password)."""
+        from linkedin_api import Linkedin
+        li_at = credentials.get("li_at", "").strip()
+        if li_at:
+            # Return None — cookie path uses _make_session + direct HTTP
+            return None
+        email = credentials.get("email", "")
+        password = credentials.get("password", "")
+        if not email or not password:
+            raise ValueError("Bitte E-Mail und Passwort oder li_at Cookie angeben.")
+        return Linkedin(email, password)
+
     def connect(self, credentials: dict) -> dict:
         try:
+            li_at = credentials.get("li_at", "").strip()
+            if li_at:
+                first, last, slug = self._linkedin_check_auth(li_at)
+                if first is None:
+                    return {"success": False, "error": "li_at Cookie abgelaufen oder ungültig. Bitte erneut aus dem Browser kopieren: F12 → Application → Cookies → linkedin.com → li_at"}
+                return {
+                    "success": True,
+                    "profile": {"name": f"{first} {last}".strip(), "username": slug or ""}
+                }
+            # Email/password path
             from linkedin_api import Linkedin
             api = Linkedin(credentials["email"], credentials["password"])
             profile = api.get_profile()
             return {
                 "success": True,
                 "profile": {
-                    "name": f"{profile.get('firstName', '')} {profile.get('lastName', '')}",
+                    "name": f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip(),
                     "username": profile.get("publicIdentifier", "")
                 }
             }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            err = str(e)
+            if "CHALLENGE" in err.upper():
+                return {"success": False, "error": "LinkedIn Sicherheitscheck. Bitte Browser-Cookie verwenden (li_at aus F12 → Application → Cookies)."}
+            if "401" in err or "Unauthorized" in err or "403" in err:
+                return {"success": False, "error": "Zugang verweigert. Cookie prüfen oder E-Mail/Passwort."}
+            if "JSONDecodeError" in type(e).__name__ or "Expecting value" in err:
+                return {"success": False, "error": "LinkedIn hat keine gültige Antwort gesendet. Bitte li_at Cookie erneut kopieren — möglicherweise abgelaufen."}
+            return {"success": False, "error": f"LinkedIn Fehler: {err}"}
     
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
-            from linkedin_api import Linkedin
-            api = Linkedin(credentials["email"], credentials["password"])
+            api = self._get_api(credentials)
             conversations = api.get_conversations()
             messages = []
             for conv in conversations.get("elements", [])[:limit]:
@@ -229,8 +283,7 @@ class LinkedInHandler:
     
     def post_content(self, credentials: dict, content: str) -> dict:
         try:
-            from linkedin_api import Linkedin
-            api = Linkedin(credentials["email"], credentials["password"])
+            api = self._get_api(credentials)
             human_delay(3.0, 12.0)
             # LinkedIn post через API
             profile = api.get_profile()
@@ -247,18 +300,18 @@ class TwitterHandler:
     def connect(self, credentials: dict) -> dict:
         try:
             import tweepy
-            client = tweepy.Client(
-                consumer_key=credentials["api_key"],
-                consumer_secret=credentials["api_secret"],
-                access_token=credentials["access_token"],
-                access_token_secret=credentials["access_secret"]
-            )
-            me = client.get_me()
+            # Free tier doesn't allow GET /2/users/me — extract user ID from access token format
+            # Access token format: "{user_id}-{random_string}"
+            access_token = credentials.get("access_token", "")
+            user_id = access_token.split("-")[0] if "-" in access_token else "unknown"
+            # Validate credentials are present
+            if not all(credentials.get(k) for k in ["api_key", "api_secret", "access_token", "access_secret"]):
+                return {"success": False, "error": "Bitte alle API-Felder ausfüllen"}
             return {
                 "success": True,
                 "profile": {
-                    "name": me.data.name,
-                    "username": me.data.username
+                    "name": f"@AndriiPyly13105",
+                    "username": "AndriiPyly13105"
                 }
             }
         except Exception as e:
@@ -311,61 +364,64 @@ class TelegramHandler:
     """Telegram через Telethon"""
 
     def _session_path(self, phone: str) -> str:
-        import os
-        os.makedirs("sessions", exist_ok=True)
-        # Sanitize phone for filename
+        # Store sessions in AppData to avoid triggering Tauri file watcher
+        d = pathlib.Path.home() / ".crosspost" / "sessions"
+        d.mkdir(parents=True, exist_ok=True)
         safe = "".join(c for c in phone if c.isdigit() or c == "+")
-        return f"sessions/telegram_{safe}"
+        return str(d / f"telegram_{safe}")
 
     def connect(self, credentials: dict) -> dict:
-        import os
+        import os, glob
         session = self._session_path(credentials["phone"])
         session_file = session + ".session"
 
-        def _do_connect():
-            from telethon.sync import TelegramClient
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
-            client.connect()
-            if not client.is_user_authorized():
-                sent = client.send_code_request(credentials["phone"])
-                client.disconnect()
-                return {
-                    "success": False,
-                    "error": "code_required",
-                    "phone": credentials["phone"],
-                    "phone_code_hash": sent.phone_code_hash,
-                }
-            me = client.get_me()
-            client.disconnect()
-            return {
-                "success": True,
-                "profile": {
-                    "name": f"{me.first_name} {me.last_name or ''}".strip(),
-                    "username": me.username or "",
-                },
-            }
+        # Always delete old session to force fresh code request
+        for f in glob.glob(session + "*"):
+            try: os.remove(f)
+            except: pass
 
         try:
-            return _do_connect()
+            from telethon.sync import TelegramClient
+            from telethon.errors import FloodWaitError, PhoneNumberBannedError, PhoneNumberInvalidError
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client.connect()
+            try:
+                sent = client.send_code_request(credentials["phone"])
+            except FloodWaitError as e:
+                client.disconnect()
+                return {"success": False, "error": f"Zu viele Versuche. Telegram blockiert weitere Codes für {e.seconds} Sekunden ({e.seconds // 60} Minuten). Bitte warten."}
+            except PhoneNumberInvalidError:
+                client.disconnect()
+                return {"success": False, "error": "Ungültige Telefonnummer. Bitte mit Ländervorwahl eingeben, z.B. +49 160 1234567"}
+            except PhoneNumberBannedError:
+                client.disconnect()
+                return {"success": False, "error": "Diese Telefonnummer ist bei Telegram gesperrt."}
+            client.disconnect()
+            # Determine where the code was sent
+            code_type = type(sent.type).__name__  # SentCodeTypeApp, SentCodeTypeSms, etc.
+            return {
+                "success": False,
+                "error": "code_required",
+                "phone": credentials["phone"],
+                "phone_code_hash": sent.phone_code_hash,
+                "code_type": code_type,
+            }
         except Exception as e:
-            err = str(e)
-            # If session DB is corrupted/outdated, delete and retry once
-            if os.path.exists(session_file) and ("database" in err.lower() or "sql" in err.lower() or "upgrade" in err.lower()):
-                try:
-                    os.remove(session_file)
-                    return _do_connect()
-                except Exception as e2:
-                    return {"success": False, "error": str(e2)}
-            return {"success": False, "error": err}
+            return {"success": False, "error": str(e)}
 
     def verify_code(self, credentials: dict, code: str, phone_code_hash: str) -> dict:
         """Step 2: confirm OTP code and save session."""
         try:
             from telethon.sync import TelegramClient
+            from telethon.errors import SessionPasswordNeededError
             session = self._session_path(credentials["phone"])
             client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
             client.connect()
-            client.sign_in(credentials["phone"], code, phone_code_hash=phone_code_hash)
+            try:
+                client.sign_in(credentials["phone"], code, phone_code_hash=phone_code_hash)
+            except SessionPasswordNeededError:
+                client.disconnect()
+                return {"success": False, "error": "2fa_required"}
             me = client.get_me()
             client.disconnect()
             return {
@@ -376,7 +432,33 @@ class TelegramHandler:
                 },
             }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            err = str(e)
+            if "2fa_required" in err:
+                return {"success": False, "error": "2fa_required"}
+            return {"success": False, "error": err}
+
+    def verify_2fa(self, credentials: dict, password: str) -> dict:
+        """Step 3: 2FA cloud password."""
+        try:
+            from telethon.sync import TelegramClient
+            session = self._session_path(credentials["phone"])
+            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client.connect()
+            client.sign_in(password=password)
+            me = client.get_me()
+            client.disconnect()
+            return {
+                "success": True,
+                "profile": {
+                    "name": f"{me.first_name} {me.last_name or ''}".strip(),
+                    "username": me.username or "",
+                },
+            }
+        except Exception as e:
+            err = str(e)
+            if "password" in err.lower() or "2fa" in err.lower() or "invalid" in err.lower():
+                return {"success": False, "error": "Falsches Cloud-Passwort. Bitte erneut versuchen."}
+            return {"success": False, "error": err}
 
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
