@@ -105,17 +105,52 @@ pub async fn add_account(
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
-    // Check if an account for this platform already exists — update instead of inserting
-    let existing: Option<String> = conn
+    // ── License plan limit check ──────────────────────────────────────────────
+    let plan: String = conn
         .query_row(
+            "SELECT COALESCE(plan, 'solo') FROM license WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or_else(|_| "solo".to_string());
+
+    let max_per_platform: u32 = match plan.to_lowercase().as_str() {
+        "agency" => 10,
+        "pro"    => 3,
+        _        => 1, // solo / no license
+    };
+
+    let current_count: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM accounts WHERE platform = ?1",
+            params![platform],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    // For Solo: update the single existing account instead of blocking
+    let existing_id: Option<String> = if max_per_platform == 1 {
+        conn.query_row(
             "SELECT id FROM accounts WHERE platform = ?1 LIMIT 1",
             params![platform],
             |row| row.get(0),
         )
-        .ok();
+        .ok()
+    } else {
+        None
+    };
 
-    let id = if let Some(existing_id) = existing {
-        // Update existing account credentials + display name
+    if existing_id.is_none() && current_count >= max_per_platform {
+        let plan_label = plan.to_uppercase();
+        return Err(format!(
+            "Kontolimit erreicht. Plan {plan_label} erlaubt maximal {max_per_platform} \
+             Konto/Konten pro Plattform. Bitte upgraden Sie Ihren Plan unter Lizenz."
+        ));
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let id = if let Some(existing_id) = existing_id {
+        // Solo plan: update the one existing account
         conn.execute(
             "UPDATE accounts SET display_name = ?1, username = ?2, status = 'connected', last_sync = ?3, updated_at = ?3 WHERE id = ?4",
             params![display_name, username, now, existing_id],
@@ -128,6 +163,7 @@ pub async fn add_account(
         .map_err(|e| e.to_string())?;
         existing_id
     } else {
+        // Pro / Agency: create a new account slot
         let new_id = Uuid::new_v4().to_string();
         let stronghold_key = format!("account_{}", new_id);
         conn.execute(

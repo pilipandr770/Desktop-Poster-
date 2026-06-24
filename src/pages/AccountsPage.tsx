@@ -553,6 +553,7 @@ export default function AccountsPage() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Platform | null>("instagram");
   const [updatingCookies, setUpdatingCookies] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string>("solo");
 
   // Telegram two-step OTP flow
   const [tgStep, setTgStep] = useState<"idle" | "code_sent" | "2fa">("idle");
@@ -562,7 +563,14 @@ export default function AccountsPage() {
   const [tgCodeType, setTgCodeType] = useState("");
   const [tgVerifying, setTgVerifying] = useState(false);
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => {
+    fetchAccounts();
+    invoke<{ plan?: string }>("check_license")
+      .then((s) => { if (s.plan) setPlan(s.plan.toLowerCase()); })
+      .catch(() => {});
+  }, []);
+
+  const maxPerPlatform = plan === "agency" ? 10 : plan === "pro" ? 3 : 1;
 
   const handleMetaOAuth = async (platform: Platform) => {
     try {
@@ -755,7 +763,17 @@ export default function AccountsPage() {
         className="px-6 py-4 shrink-0 border-b"
         style={{ background: "var(--mantle)", borderColor: "var(--surface0)" }}
       >
-        <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>Konten verwalten</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>Konten verwalten</h1>
+          <span className="text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide"
+            style={{
+              background: plan === "agency" ? "var(--mauve)22" : plan === "pro" ? "var(--blue)22" : "var(--surface1)",
+              color: plan === "agency" ? "var(--mauve)" : plan === "pro" ? "var(--blue)" : "var(--overlay1)",
+              border: `1px solid ${plan === "agency" ? "var(--mauve)44" : plan === "pro" ? "var(--blue)44" : "var(--surface2)"}`,
+            }}>
+            {plan} · {maxPerPlatform}/Plattform
+          </span>
+        </div>
         <p className="text-sm mt-0.5" style={{ color: "var(--overlay1)" }}>
           Zugangsdaten werden verschlüsselt lokal gespeichert · kein Cloud-Zugriff
         </p>
@@ -840,6 +858,8 @@ export default function AccountsPage() {
           const isConnecting = connecting === platform.id;
           const isConnected = connectedIds.has(platform.id);
           const Icon = platform.icon;
+          const platformCount = accounts.filter((a) => a.platform === platform.id).length;
+          const atLimit = platformCount >= maxPerPlatform;
 
           return (
             <div
@@ -869,6 +889,15 @@ export default function AccountsPage() {
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                         style={{ background: "var(--green)22", color: "var(--green)" }}>
                         Verbunden
+                      </span>
+                    )}
+                    {maxPerPlatform > 1 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full"
+                        style={{
+                          background: atLimit ? "var(--red)22" : "var(--surface1)",
+                          color: atLimit ? "var(--red)" : "var(--overlay0)",
+                        }}>
+                        {platformCount}/{maxPerPlatform}
                       </span>
                     )}
                     {platform.id === "whatsapp" && (

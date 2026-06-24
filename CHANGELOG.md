@@ -4,6 +4,19 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.4.0-beta] — 2026-06-24
+
+### Added
+- **License plan enforcement** — `add_account` now reads the active plan from DB and enforces per-platform account limits: Solo=1, Pro=3, Agency=10. Returns a German error message if the limit is exceeded.
+- **Plan badge in AccountsPage header** — shows current plan (Solo/Pro/Agency) and the max accounts per platform.
+- **Per-platform slot indicators** — Pro/Agency users see `used/max` badges on each platform card (red when at limit).
+
+### Changed
+- Solo plan: adding an account for an existing platform updates it (same as before)
+- Pro/Agency plan: multiple accounts per platform are now truly supported (no longer replaced)
+
+---
+
 ## [0.3.0-beta] — 2026-06-24
 
 ### Added
