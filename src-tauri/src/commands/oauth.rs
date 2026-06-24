@@ -303,12 +303,26 @@ fn extract_code_from_request(request_line: &str) -> Result<String, String> {
 
 const TWITTER_REDIRECT_URI: &str = "http://127.0.0.1:8081/callback";
 
+// Embedded at compile time from TWITTER_CLIENT_ID env var (set in CI from GitHub Secrets).
+// Falls back to DB setting for local dev.
+macro_rules! twitter_client_id_builtin {
+    () => {
+        match option_env!("TWITTER_CLIENT_ID") {
+            Some(v) => v,
+            None => "",
+        }
+    };
+}
+
 /// Opens system browser for Twitter OAuth 2.0 PKCE flow.
 /// Catches redirect on localhost:8081, exchanges code for token, saves to DB.
-/// Requires `twitter_client_id` to be configured in the settings table.
 #[tauri::command]
 pub async fn start_twitter_oauth(app: AppHandle) -> Result<Value, String> {
-    let client_id = {
+    // Prefer compile-time constant; fall back to runtime DB setting
+    let builtin = twitter_client_id_builtin!();
+    let client_id = if !builtin.is_empty() {
+        builtin.to_string()
+    } else {
         let db = app.state::<AppDb>();
         let conn = db.0.lock().map_err(|e| e.to_string())?;
         conn.query_row(
