@@ -228,7 +228,7 @@ export default function PipelinePost() {
 
     for (const id of destinations) {
       try {
-        await invoke("post_content", { accountId: id, content: selectedPost.text });
+        await invoke("post_content", { accountId: id, content: selectedPost.text, mediaPath: selectedPost.media_url ?? null });
         setStatuses((s) => ({ ...s, [id]: "done" }));
       } catch (e: any) {
         setStatuses((s) => ({ ...s, [id]: "error" }));
