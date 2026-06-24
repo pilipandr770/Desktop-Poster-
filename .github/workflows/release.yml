@@ -134,6 +134,8 @@ jobs:
           name: CrossPost Desktop ${{ github.ref_name }}
           draft: false
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          make_latest: false
+          fail_on_unmatched_files: false
           body: |
             ## CrossPost Desktop ${{ github.ref_name }}
 
