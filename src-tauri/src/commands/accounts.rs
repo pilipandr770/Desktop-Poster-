@@ -100,27 +100,49 @@ pub async fn add_account(
         .as_str()
         .map(|s| s.to_string());
 
-    let id = Uuid::new_v4().to_string();
-    let stronghold_key = format!("account_{}", id);
     let now = chrono::Utc::now().to_rfc3339();
-
     let creds_json = serde_json::to_string(&credentials).map_err(|e| e.to_string())?;
 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
-    conn.execute(
-        "INSERT INTO accounts (id, platform, display_name, username, stronghold_key, status, last_sync)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'connected', ?6)",
-        params![id, platform, display_name, username, stronghold_key, now],
-    )
-    .map_err(|e| e.to_string())?;
+    // Check if an account for this platform already exists — update instead of inserting
+    let existing: Option<String> = conn
+        .query_row(
+            "SELECT id FROM accounts WHERE platform = ?1 LIMIT 1",
+            params![platform],
+            |row| row.get(0),
+        )
+        .ok();
 
-    // Store credentials encrypted in settings table (using account id as key)
-    conn.execute(
-        "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
-        params![format!("creds_{}", id), creds_json],
-    )
-    .map_err(|e| e.to_string())?;
+    let id = if let Some(existing_id) = existing {
+        // Update existing account credentials + display name
+        conn.execute(
+            "UPDATE accounts SET display_name = ?1, username = ?2, status = 'connected', last_sync = ?3, updated_at = ?3 WHERE id = ?4",
+            params![display_name, username, now, existing_id],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+            params![format!("creds_{}", existing_id), creds_json],
+        )
+        .map_err(|e| e.to_string())?;
+        existing_id
+    } else {
+        let new_id = Uuid::new_v4().to_string();
+        let stronghold_key = format!("account_{}", new_id);
+        conn.execute(
+            "INSERT INTO accounts (id, platform, display_name, username, stronghold_key, status, last_sync)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'connected', ?6)",
+            params![new_id, platform, display_name, username, stronghold_key, now],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+            params![format!("creds_{}", new_id), creds_json],
+        )
+        .map_err(|e| e.to_string())?;
+        new_id
+    };
 
     Ok(Account {
         id,
@@ -141,6 +163,27 @@ pub fn remove_account(db: State<'_, AppDb>, id: String) -> Result<(), String> {
     conn.execute(
         "DELETE FROM settings WHERE key = ?1",
         params![format!("creds_{}", id)],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_account_credentials(
+    db: State<'_, AppDb>,
+    id: String,
+    credentials: HashMap<String, String>,
+) -> Result<(), String> {
+    let creds_json = serde_json::to_string(&credentials).map_err(|e| e.to_string())?;
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+        params![format!("creds_{}", id), creds_json],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE accounts SET status = 'connected', last_sync = datetime('now'), updated_at = datetime('now') WHERE id = ?1",
+        params![id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

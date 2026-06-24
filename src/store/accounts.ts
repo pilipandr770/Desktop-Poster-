@@ -43,7 +43,15 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
   addAccount: async (platform, credentials) => {
     try {
       const account = await invoke<Account>("add_account", { platform, credentials });
-      set((s) => ({ accounts: [...s.accounts, account] }));
+      // Upsert: replace existing account with same id, or append if new
+      set((s) => {
+        const exists = s.accounts.some((a) => a.id === account.id);
+        return {
+          accounts: exists
+            ? s.accounts.map((a) => (a.id === account.id ? account : a))
+            : [...s.accounts, account],
+        };
+      });
     } catch (e) {
       console.error("Failed to add account:", e);
       throw e;

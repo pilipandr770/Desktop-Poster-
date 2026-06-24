@@ -169,9 +169,9 @@ class InstagramHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def post_content(self, session: dict, content: str, media_path: str = None) -> dict:
+    def post_content(self, credentials: dict = None, session: dict = None, content: str = "", media_path: str = None) -> dict:
         try:
-            cl = self._client(session)
+            cl = self._client(credentials or session)
             human_delay(3.0, 10.0)
 
             if platform == "instagram":
@@ -237,8 +237,7 @@ class LinkedInHandler:
         from linkedin_api import Linkedin
         li_at = credentials.get("li_at", "").strip()
         if li_at:
-            # Return None — cookie path uses _make_session + direct HTTP
-            return None
+            return Linkedin("", "", cookies={"li_at": li_at}, authenticate=False)
         email = credentials.get("email", "")
         password = credentials.get("password", "")
         if not email or not password:
@@ -298,15 +297,146 @@ class LinkedInHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def _get_posts_via_cookie(self, li_at: str, jsessionid: str, limit: int) -> dict:
+        """Fetch own posts using li_at + JSESSIONID via LinkedIn Voyager API."""
+        import requests, re
+
+        jsession = jsessionid.strip('"')
+        all_cookies = {"li_at": li_at, "JSESSIONID": f'"{jsession}"'}
+        HEADERS = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "de-DE,de;q=0.9",
+        }
+        html = ""
+
+        if not jsession:
+            return {"success": False, "error": "LinkedIn CSRF-Token nicht erhalten. Bitte li_at Cookie erneuern."}
+
+        # Get publicIdentifier + entityUrn from Voyager /me
+        voyager_headers = {
+            "Accept": "application/vnd.linkedin.normalized+json+2.1",
+            "csrf-token": jsession,
+            "x-restli-protocol-version": "2.0.0",
+            "x-li-lang": "de_DE",
+            **HEADERS,
+        }
+        public_id = ""
+        profile_entity_id = ""
+        try:
+            me_resp = requests.get(
+                "https://www.linkedin.com/voyager/api/me",
+                cookies=all_cookies,
+                headers=voyager_headers,
+                timeout=15,
+            )
+            if me_resp.text.strip():
+                me_data = me_resp.json()
+                for item in me_data.get("included", []):
+                    if not public_id:
+                        public_id = item.get("publicIdentifier", "")
+                    urn = item.get("entityUrn", "")
+                    if not profile_entity_id and ("miniProfile" in urn or "fsd_profile" in urn):
+                        profile_entity_id = urn.split(":")[-1]
+                    if public_id and profile_entity_id:
+                        break
+                if not public_id:
+                    mini = me_data.get("data", {}).get("miniProfile", {})
+                    if isinstance(mini, dict):
+                        public_id = mini.get("publicIdentifier", "")
+                if not profile_entity_id:
+                    mini_urn = (me_data.get("data", {}).get("*miniProfile", "")
+                                or me_data.get("data", {}).get("entityUrn", ""))
+                    if mini_urn:
+                        profile_entity_id = mini_urn.split(":")[-1]
+        except Exception:
+            pass
+
+        # Fallback: regex on the feed HTML
+        if not public_id:
+            for pattern in [r'"publicIdentifier"\s*:\s*"([^"]+)"', r'"vanityName"\s*:\s*"([^"]+)"']:
+                m = re.search(pattern, html)
+                if m:
+                    public_id = m.group(1)
+                    break
+
+        if not profile_entity_id and public_id:
+            # Use publicIdentifier as fallback entity ID
+            profile_entity_id = public_id
+
+        if not profile_entity_id:
+            return {"success": False, "error": "LinkedIn Profil-ID nicht gefunden. Bitte li_at Cookie erneuern."}
+
+        # Step 3: fetch profile posts via Voyager profileUpdatesV2
+        profile_urn = f"urn:li:fsd_profile:{profile_entity_id}"
+        feed_resp = requests.get(
+            "https://www.linkedin.com/voyager/api/identity/profileUpdatesV2",
+            params={
+                "q": "memberShareFeed",
+                "moduleKey": "member-share",
+                "count": limit,
+                "start": 0,
+                "profileUrn": profile_urn,
+            },
+            cookies=all_cookies,
+            headers=voyager_headers,
+            timeout=15,
+        )
+
+        if not feed_resp.text.strip():
+            return {"success": False, "error": f"LinkedIn API leere Antwort (profileUrn={profile_urn})."}
+
+        try:
+            feed_data = feed_resp.json()
+        except Exception:
+            return {"success": False, "error": f"LinkedIn API Antwort nicht lesbar (HTTP {feed_resp.status_code})."}
+
+        # Extract elements from normalized JSON
+        elements = (feed_data.get("data", {}).get("elements", [])
+                    or feed_data.get("elements", []))
+        if not elements:
+            # Try included list — some endpoints nest content there
+            elements = [e for e in feed_data.get("included", [])
+                        if isinstance(e, dict) and e.get("commentary")]
+
+        posts = []
+        for el in elements[:limit]:
+            text = ""
+            comm = el.get("commentary", {})
+            if isinstance(comm, dict):
+                txt_obj = comm.get("text", {})
+                text = txt_obj.get("text", "") if isinstance(txt_obj, dict) else str(txt_obj)
+            elif isinstance(comm, str):
+                text = comm
+            if not text:
+                text = (el.get("specificContent", {})
+                          .get("com.linkedin.ugc.ShareContent", {})
+                          .get("shareCommentaryV2", {})
+                          .get("text", ""))
+            posts.append({
+                "id": el.get("urn", str(len(posts))),
+                "text": text.strip() or "[Kein Text]",
+                "created_at": str(el.get("created", {}).get("time", "") if isinstance(el.get("created"), dict) else ""),
+            })
+        return {"success": True, "posts": posts}
+
     def get_posts(self, credentials: dict, limit: int = 10) -> dict:
         try:
+            li_at = credentials.get("li_at", "").strip()
+            jsessionid = credentials.get("jsessionid", "").strip()
+            if li_at:
+                if not jsessionid:
+                    return {"success": False, "error": "JSESSIONID fehlt. Bitte LinkedIn erneut verbinden und JSESSIONID aus F12 → Application → Cookies → .linkedin.com kopieren."}
+                return self._get_posts_via_cookie(li_at, jsessionid, limit)
+            # Password/email path via linkedin_api library
             api = self._get_api(credentials)
-            profile = api.get_profile()
-            public_id = profile.get("publicIdentifier", "")
+            me = api.get_user_profile()
+            public_id = (me.get("miniProfile", {}).get("publicIdentifier", "")
+                         or me.get("publicIdentifier", ""))
+            if not public_id:
+                return {"success": False, "error": "LinkedIn Profil nicht gefunden."}
             raw = api.get_profile_posts(public_id=public_id, post_count=limit)
             posts = []
             for p in raw:
-                # Extract text from various LinkedIn post structures
                 text = ""
                 comm = p.get("commentary", {})
                 if isinstance(comm, dict):
@@ -407,7 +537,10 @@ class TwitterHandler:
             tweet = client.create_tweet(text=content)
             return {"success": True, "post_id": str(tweet.data["id"])}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            err = str(e)
+            if "403" in err or "Forbidden" in err:
+                return {"success": False, "error": "Twitter API Fehler 403: Ihre API-Keys müssen an ein Twitter Developer Project gebunden sein. Bitte im developer.twitter.com Portal prüfen: Project → App → Keys and Tokens."}
+            return {"success": False, "error": err}
 
 
 class TelegramHandler:

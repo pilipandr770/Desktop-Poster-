@@ -14,6 +14,7 @@ __pycache__/
 *.pyo
 python-sidecar/__pycache__/
 python-sidecar/sessions/
+src-tauri/sessions/
 python-sidecar/dist/
 python-sidecar/build/
 python-sidecar/*.spec.bak

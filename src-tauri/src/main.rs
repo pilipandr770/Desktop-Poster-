@@ -150,6 +150,7 @@ fn main() {
             commands::accounts::add_account,
             commands::accounts::remove_account,
             commands::accounts::update_account_status,
+            commands::accounts::update_account_credentials,
             // Messages
             commands::messages::get_messages,
             commands::messages::mark_as_read,

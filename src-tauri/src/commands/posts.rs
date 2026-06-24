@@ -128,7 +128,7 @@ pub async fn post_content(
     };
 
     let mut sidecar_params = serde_json::json!({
-        "session": credentials,
+        "credentials": credentials,
         "content": content
     });
     if let Some(path) = &media_path {

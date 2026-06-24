@@ -388,8 +388,8 @@ function LinkedInConnect({
   const handleSubmit = () => {
     if (mode === "cookie") {
       if (!liAt.trim()) { toast.error("Bitte li_at Cookie eingeben"); return; }
-      const creds: Record<string,string> = { li_at: liAt.trim() };
-      if (jsessionId.trim()) creds.jsessionid = jsessionId.trim();
+      if (!jsessionId.trim()) { toast.error("Bitte JSESSIONID Cookie eingeben (für Posts-Abruf benötigt)"); return; }
+      const creds: Record<string,string> = { li_at: liAt.trim(), jsessionid: jsessionId.trim() };
       onConnect(creds);
     } else {
       if (!email.trim() || !password.trim()) { toast.error("Bitte E-Mail und Passwort eingeben"); return; }
@@ -489,11 +489,70 @@ function LinkedInConnect({
 
 // ── Component ───────────────────────────────────────────────────────────────
 
+function LinkedInCookieUpdate({ accountId, color, onDone }: { accountId: string; color: string; onDone: () => void }) {
+  const [liAt, setLiAt] = useState("");
+  const [jsessionId, setJsessionId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!liAt.trim()) { toast.error("Bitte li_at eingeben"); return; }
+    if (!jsessionId.trim()) { toast.error("Bitte JSESSIONID eingeben"); return; }
+    setSaving(true);
+    try {
+      await invoke("update_account_credentials", {
+        id: accountId,
+        credentials: { li_at: liAt.trim(), jsessionid: jsessionId.trim() },
+      });
+      toast.success("✓ LinkedIn Cookies aktualisiert!");
+      onDone();
+    } catch (e: any) {
+      toast.error(String(e).slice(0, 150));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: "10px 12px", background: "var(--surface0)", borderRadius: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+      <p style={{ fontSize: 11, color: "var(--subtext0)", margin: 0 }}>
+        F12 → Application → Cookies → linkedin.com → Werte kopieren:
+      </p>
+      {[
+        { label: "li_at", val: liAt, set: setLiAt, placeholder: "AQE..." },
+        { label: "JSESSIONID", val: jsessionId, set: setJsessionId, placeholder: "ajax:..." },
+      ].map((f) => (
+        <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, color: "var(--overlay1)", minWidth: 80 }}>{f.label}</span>
+          <input
+            type="password"
+            placeholder={f.placeholder}
+            value={f.val}
+            onChange={(e) => f.set(e.target.value)}
+            style={{ flex: 1, background: "var(--base)", border: `1px solid ${color}40`, borderRadius: 6, padding: "5px 8px", color: "var(--text)", fontSize: 12, outline: "none" }}
+            onFocus={(e) => (e.target.style.borderColor = color)}
+            onBlur={(e) => (e.target.style.borderColor = `${color}40`)}
+          />
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button onClick={onDone} style={{ flex: 1, padding: "5px", borderRadius: 6, background: "var(--base)", color: "var(--overlay1)", border: "none", cursor: "pointer", fontSize: 12 }}>
+          Abbrechen
+        </button>
+        <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: "5px", borderRadius: 6, background: color, color: "#fff", border: "none", cursor: saving ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600, opacity: saving ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+          {saving ? <><Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> Speichern…</> : "Cookies speichern"}
+        </button>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 export default function AccountsPage() {
   const { accounts, fetchAccounts, addAccount, removeAccount } = useAccountsStore();
   const [connecting, setConnecting] = useState<Platform | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Platform | null>("instagram");
+  const [updatingCookies, setUpdatingCookies] = useState<string | null>(null);
 
   // Telegram two-step OTP flow
   const [tgStep, setTgStep] = useState<"idle" | "code_sent" | "2fa">("idle");
@@ -718,8 +777,8 @@ export default function AccountsPage() {
                 const cfg = PLATFORMS.find((p) => p.id === account.platform);
                 const Icon = cfg?.icon || Circle;
                 return (
+                  <div key={account.id} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   <div
-                    key={account.id}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                     style={{ background: "var(--surface0)" }}
                   >
@@ -738,6 +797,15 @@ export default function AccountsPage() {
                       </p>
                     </div>
                     <CheckCircle size={15} style={{ color: "var(--green)" }} />
+                    {account.platform === "linkedin" && (
+                      <button
+                        onClick={() => setUpdatingCookies(updatingCookies === account.id ? null : account.id)}
+                        title="Cookie aktualisieren"
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#0A66C2", background: "#0A66C222", border: "none", cursor: "pointer", padding: "3px 7px", borderRadius: 5, fontWeight: 600 }}
+                      >
+                        <RefreshCw size={11} /> Cookie
+                      </button>
+                    )}
                     <button
                       onClick={() => { if (confirm(`"${account.display_name}" entfernen?`)) removeAccount(account.id).then(() => toast("Entfernt")); }}
                       className="p-1 rounded opacity-40 hover:opacity-100 transition-all"
@@ -745,6 +813,16 @@ export default function AccountsPage() {
                     >
                       <Trash2 size={13} />
                     </button>
+                  </div>
+                  {account.platform === "linkedin" && updatingCookies === account.id && (
+                    <div style={{ padding: "0 10px 10px 10px", background: "var(--surface0)", borderRadius: "0 0 8px 8px" }}>
+                      <LinkedInCookieUpdate
+                        accountId={account.id}
+                        color="#0A66C2"
+                        onDone={() => { setUpdatingCookies(null); fetchAccounts(); }}
+                      />
+                    </div>
+                  )}
                   </div>
                 );
               })}
