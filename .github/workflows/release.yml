@@ -39,12 +39,18 @@ jobs:
           workspaces: './src-tauri -> target'
 
       # ── Build Python sidecar → sidecar.exe ──────────────────────────────────
-      - name: Install Python dependencies + PyInstaller
+      - name: Install Python dependencies
         working-directory: python-sidecar
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller
-          pyinstaller sidecar.spec
+          pip install -r requirements.txt
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build Python sidecar with PyInstaller
+        working-directory: python-sidecar
+        run: pyinstaller sidecar.spec --noconfirm --log-level WARN
 
       # ── Build Node WhatsApp sidecar ──────────────────────────────────────────
       - name: Install WhatsApp sidecar dependencies
