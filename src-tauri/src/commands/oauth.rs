@@ -1,6 +1,8 @@
 use crate::db::AppDb;
+use base64::{engine::general_purpose, Engine as _};
 use rusqlite::params;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use tauri::{AppHandle, Manager};
@@ -295,4 +297,193 @@ fn extract_code_from_request(request_line: &str) -> Result<String, String> {
     }
 
     Err("Kein Autorisierungscode im Redirect erhalten".to_string())
+}
+
+// ─── Twitter / X OAuth 2.0 PKCE ──────────────────────────────────────────────
+
+const TWITTER_REDIRECT_URI: &str = "http://127.0.0.1:8081/callback";
+
+/// Opens system browser for Twitter OAuth 2.0 PKCE flow.
+/// Catches redirect on localhost:8081, exchanges code for token, saves to DB.
+/// Requires `twitter_client_id` to be configured in the settings table.
+#[tauri::command]
+pub async fn start_twitter_oauth(app: AppHandle) -> Result<Value, String> {
+    let client_id = {
+        let db = app.state::<AppDb>();
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'twitter_client_id'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+    };
+
+    if client_id.is_empty() {
+        return Err(
+            "Twitter Client ID nicht konfiguriert. Bitte in Einstellungen → Entwickler eintragen \
+             (developer.twitter.com → App → OAuth 2.0 Client ID)."
+                .to_string(),
+        );
+    }
+
+    // PKCE: code_verifier = two UUIDs concatenated as hex (64 URL-safe chars)
+    let code_verifier = format!(
+        "{}{}",
+        Uuid::new_v4().to_string().replace('-', ""),
+        Uuid::new_v4().to_string().replace('-', "")
+    );
+
+    // code_challenge = BASE64URL(SHA256(code_verifier))
+    let hash = Sha256::digest(code_verifier.as_bytes());
+    let code_challenge = general_purpose::URL_SAFE_NO_PAD.encode(hash);
+
+    let state_token = Uuid::new_v4().to_string();
+
+    let oauth_url = format!(
+        "https://twitter.com/i/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256",
+        client_id,
+        urlencoding::encode(TWITTER_REDIRECT_URI),
+        urlencoding::encode("tweet.read tweet.write users.read offline.access"),
+        state_token,
+        code_challenge
+    );
+
+    app.opener()
+        .open_url(&oauth_url, None::<&str>)
+        .map_err(|e| e.to_string())?;
+
+    // Wait for OAuth redirect on localhost:8081 (port 8080 is used by Meta)
+    let code = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let listener = TcpListener::bind("127.0.0.1:8081")
+            .map_err(|e| format!("Port 8081 belegt: {}", e))?;
+
+        let (mut stream, _) = listener.accept().map_err(|e| e.to_string())?;
+
+        let mut reader = BufReader::new(&stream);
+        let mut request_line = String::new();
+        reader
+            .read_line(&mut request_line)
+            .map_err(|e| e.to_string())?;
+
+        let code = extract_code_from_request(&request_line)?;
+
+        let html = "<html><head><meta charset='utf-8'></head><body style='font-family:sans-serif;text-align:center;padding:60px'>\
+            <h2 style='color:#4CAF50'>✅ Twitter / X erfolgreich verbunden!</h2>\
+            <p>Sie können dieses Fenster jetzt schließen und zu CrossPost Desktop zurückkehren.</p>\
+            </body></html>";
+        let _ = write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            html.len(),
+            html
+        );
+        stream.flush().ok();
+        Ok(code)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let http = reqwest::Client::new();
+
+    // Exchange code for user access token (no client_secret for PKCE public app)
+    let token_resp: Value = http
+        .post("https://api.twitter.com/2/oauth2/token")
+        .basic_auth(&client_id, Option::<&str>::None)
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", TWITTER_REDIRECT_URI),
+            ("code_verifier", code_verifier.as_str()),
+            ("client_id", client_id.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| format!("Token-Anfrage fehlgeschlagen: {}", e))?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(err) = token_resp.get("error") {
+        let desc = token_resp
+            .get("error_description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        return Err(format!("Twitter OAuth Fehler: {} — {}", err, desc));
+    }
+
+    let access_token = token_resp["access_token"]
+        .as_str()
+        .ok_or("Kein access_token erhalten")?
+        .to_string();
+
+    let refresh_token = token_resp["refresh_token"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Get Twitter user info
+    let user_resp: Value = http
+        .get("https://api.twitter.com/2/users/me?user.fields=name,username")
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let twitter_name = user_resp["data"]["name"]
+        .as_str()
+        .unwrap_or("Twitter User")
+        .to_string();
+    let twitter_username = user_resp["data"]["username"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Save account to DB
+    let db = app.state::<AppDb>();
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let account_id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let creds = serde_json::json!({
+        "oauth2_token": access_token,
+        "refresh_token": refresh_token,
+        "platform": "twitter"
+    });
+    let creds_json = serde_json::to_string(&creds).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO accounts (id, platform, display_name, username, stronghold_key, status, last_sync)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'connected', ?6)",
+        params![
+            account_id,
+            "twitter",
+            twitter_name,
+            twitter_username,
+            format!("account_{}", account_id),
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+        params![format!("creds_{}", account_id), creds_json],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "success": true,
+        "account": {
+            "id": account_id,
+            "platform": "twitter",
+            "display_name": twitter_name,
+            "username": twitter_username,
+            "status": "connected"
+        }
+    }))
 }

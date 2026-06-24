@@ -1,0 +1,8 @@
+# Rename this file to _constants.py and fill in your values for local development.
+# This file is gitignored — never commit _constants.py with real credentials.
+#
+# Get Telegram api_id and api_hash from: https://my.telegram.org/apps
+# Get Twitter client_id from: https://developer.twitter.com/en/portal/dashboard
+
+TELEGRAM_API_ID = 0          # Replace with your integer api_id
+TELEGRAM_API_HASH = ""       # Replace with your 32-char api_hash

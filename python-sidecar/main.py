@@ -12,10 +12,48 @@ import logging
 import pathlib
 import random
 import time
+import os
 from typing import Any
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("crosspost-sidecar")
+
+# ─── Telegram API credentials ─────────────────────────────────────────────────
+# Injected at build time via _constants.py (created by CI from GitHub Secrets).
+# Fallback to environment variables for local dev.
+try:
+    from _constants import TELEGRAM_API_ID, TELEGRAM_API_HASH  # type: ignore
+except ImportError:
+    TELEGRAM_API_ID = int(os.environ.get("TELEGRAM_API_ID", "0"))
+    TELEGRAM_API_HASH = os.environ.get("TELEGRAM_API_HASH", "")
+
+# ─── Email IMAP/SMTP auto-detect ──────────────────────────────────────────────
+_IMAP_SMTP = {
+    "gmail.com":     ("imap.gmail.com",              "smtp.gmail.com"),
+    "googlemail.com":("imap.gmail.com",              "smtp.gmail.com"),
+    "outlook.com":   ("outlook.office365.com",        "smtp.office365.com"),
+    "hotmail.com":   ("outlook.office365.com",        "smtp.office365.com"),
+    "live.com":      ("outlook.office365.com",        "smtp.office365.com"),
+    "msn.com":       ("outlook.office365.com",        "smtp.office365.com"),
+    "yahoo.com":     ("imap.mail.yahoo.com",          "smtp.mail.yahoo.com"),
+    "yahoo.de":      ("imap.mail.yahoo.com",          "smtp.mail.yahoo.com"),
+    "icloud.com":    ("imap.mail.me.com",             "smtp.mail.me.com"),
+    "me.com":        ("imap.mail.me.com",             "smtp.mail.me.com"),
+    "gmx.de":        ("imap.gmx.net",                 "mail.gmx.net"),
+    "gmx.net":       ("imap.gmx.net",                 "mail.gmx.net"),
+    "gmx.at":        ("imap.gmx.net",                 "mail.gmx.net"),
+    "web.de":        ("imap.web.de",                  "smtp.web.de"),
+    "t-online.de":   ("secureimap.t-online.de",       "securesmtp.t-online.de"),
+    "freenet.de":    ("mx.freenet.de",                "mx.freenet.de"),
+    "posteo.de":     ("posteo.de",                    "posteo.de"),
+    "tutanota.com":  ("mail.tutanota.com",            "mail.tutanota.com"),
+}
+
+def _detect_email_servers(email: str) -> tuple:
+    domain = email.split("@")[-1].lower().strip()
+    default_imap = f"imap.{domain}"
+    default_smtp = f"smtp.{domain}"
+    return _IMAP_SMTP.get(domain, (default_imap, default_smtp))
 
 # ─── Session cache helpers ────────────────────────────────────────────────────
 
@@ -471,25 +509,30 @@ class LinkedInHandler:
 
 
 class TwitterHandler:
-    """Twitter/X через Tweepy"""
-    
+    """Twitter/X — OAuth 2.0 PKCE (via Rust) oder OAuth 1.0a (Legacy)"""
+
+    def _oauth2_request(self, method: str, url: str, token: str, body: dict = None):
+        import urllib.request, urllib.parse, json as _j
+        data = _j.dumps(body).encode() if body else None
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Authorization", f"Bearer {token}")
+        if body:
+            req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return _j.loads(r.read())
+
     def connect(self, credentials: dict) -> dict:
         try:
-            import tweepy
-            # Free tier doesn't allow GET /2/users/me — extract user ID from access token format
-            # Access token format: "{user_id}-{random_string}"
-            access_token = credentials.get("access_token", "")
-            user_id = access_token.split("-")[0] if "-" in access_token else "unknown"
-            # Validate credentials are present
+            if credentials.get("oauth2_token"):
+                data = self._oauth2_request("GET",
+                    "https://api.twitter.com/2/users/me?user.fields=name,username",
+                    credentials["oauth2_token"])
+                user = data.get("data", {})
+                return {"success": True, "profile": {"name": user.get("name", "Twitter User"), "username": user.get("username", "")}}
+            # Legacy OAuth 1.0a
             if not all(credentials.get(k) for k in ["api_key", "api_secret", "access_token", "access_secret"]):
                 return {"success": False, "error": "Bitte alle API-Felder ausfüllen"}
-            return {
-                "success": True,
-                "profile": {
-                    "name": f"@AndriiPyly13105",
-                    "username": "AndriiPyly13105"
-                }
-            }
+            return {"success": True, "profile": {"name": "Twitter User (OAuth 1.0a)", "username": ""}}
         except Exception as e:
             return {"success": False, "error": str(e)}
     
@@ -523,6 +566,17 @@ class TwitterHandler:
 
     def post_content(self, credentials: dict, content: str) -> dict:
         try:
+            text = content[:277] + "..." if len(content) > 280 else content
+            human_delay(2.0, 6.0)
+            if credentials.get("oauth2_token"):
+                result = self._oauth2_request("POST",
+                    "https://api.twitter.com/2/tweets",
+                    credentials["oauth2_token"],
+                    {"text": text})
+                if "errors" in result:
+                    return {"success": False, "error": result["errors"][0].get("message", "Twitter API Fehler")}
+                return {"success": True, "post_id": result.get("data", {}).get("id", "")}
+            # Legacy OAuth 1.0a via Tweepy
             import tweepy
             client = tweepy.Client(
                 consumer_key=credentials["api_key"],
@@ -530,16 +584,12 @@ class TwitterHandler:
                 access_token=credentials["access_token"],
                 access_token_secret=credentials["access_secret"]
             )
-            human_delay(2.0, 6.0)
-            # Twitter ограничение 280 символов
-            if len(content) > 280:
-                content = content[:277] + "..."
-            tweet = client.create_tweet(text=content)
+            tweet = client.create_tweet(text=text)
             return {"success": True, "post_id": str(tweet.data["id"])}
         except Exception as e:
             err = str(e)
             if "403" in err or "Forbidden" in err:
-                return {"success": False, "error": "Twitter API Fehler 403: Ihre API-Keys müssen an ein Twitter Developer Project gebunden sein. Bitte im developer.twitter.com Portal prüfen: Project → App → Keys and Tokens."}
+                return {"success": False, "error": "Twitter API Fehler 403: Developer Portal prüfen — Project → App → Keys and Tokens."}
             return {"success": False, "error": err}
 
 
@@ -554,9 +604,12 @@ class TelegramHandler:
         return str(d / f"telegram_{safe}")
 
     def connect(self, credentials: dict) -> dict:
-        import os, glob
+        import glob
         session = self._session_path(credentials["phone"])
         session_file = session + ".session"
+
+        if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:
+            return {"success": False, "error": "Telegram API-Zugangsdaten sind nicht konfiguriert. Bitte kontaktieren Sie den Support."}
 
         # Always delete old session to force fresh code request
         for f in glob.glob(session + "*"):
@@ -566,7 +619,7 @@ class TelegramHandler:
         try:
             from telethon.sync import TelegramClient
             from telethon.errors import FloodWaitError, PhoneNumberBannedError, PhoneNumberInvalidError
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             try:
                 sent = client.send_code_request(credentials["phone"])
@@ -598,7 +651,7 @@ class TelegramHandler:
             from telethon.sync import TelegramClient
             from telethon.errors import SessionPasswordNeededError
             session = self._session_path(credentials["phone"])
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             try:
                 client.sign_in(credentials["phone"], code, phone_code_hash=phone_code_hash)
@@ -625,7 +678,7 @@ class TelegramHandler:
         try:
             from telethon.sync import TelegramClient
             session = self._session_path(credentials["phone"])
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             client.sign_in(password=password)
             me = client.get_me()
@@ -647,7 +700,7 @@ class TelegramHandler:
         try:
             from telethon.sync import TelegramClient
             session = self._session_path(credentials["phone"])
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             messages = []
             for dialog in client.iter_dialogs(limit=10):
@@ -670,7 +723,7 @@ class TelegramHandler:
         try:
             from telethon.sync import TelegramClient
             session = self._session_path(credentials["phone"])
-            client = TelegramClient(session, int(credentials["api_id"]), credentials["api_hash"])
+            client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             human_delay(1.0, 4.0)
             client.send_message(channel, content)
@@ -687,10 +740,12 @@ class EmailHandler:
         import imaplib
         import socket
         import ssl
-        host = credentials.get("imap_host", "imap.gmail.com")
-        port = int(credentials.get("imap_port", 993))
         email_addr = credentials["email"]
         password = credentials["password"]
+        # Auto-detect IMAP server from email domain if not provided
+        detected_imap, _smtp = _detect_email_servers(email_addr)
+        host = credentials.get("imap_host") or detected_imap
+        port = int(credentials.get("imap_port", 993))
         resolved_ip = credentials.get("imap_host_ip")
 
         try:
@@ -735,8 +790,9 @@ class EmailHandler:
             import imaplib
             import email
             from email.header import decode_header
-            
-            imap = imaplib.IMAP4_SSL(credentials["imap_host"], int(credentials.get("imap_port", 993)))
+            detected_imap, _ = _detect_email_servers(credentials["email"])
+            imap_host = credentials.get("imap_host") or detected_imap
+            imap = imaplib.IMAP4_SSL(imap_host, int(credentials.get("imap_port", 993)))
             imap.login(credentials["email"], credentials["password"])
             imap.select("INBOX")
             
@@ -790,7 +846,9 @@ class EmailHandler:
             
             human_delay(1.0, 3.0)
             
-            with smtplib.SMTP_SSL(credentials["smtp_host"], int(credentials.get("smtp_port", 465))) as server:
+            _, detected_smtp = _detect_email_servers(credentials["email"])
+            smtp_host = credentials.get("smtp_host") or detected_smtp
+            with smtplib.SMTP_SSL(smtp_host, int(credentials.get("smtp_port", 465))) as server:
                 server.login(credentials["email"], credentials["password"])
                 server.send_message(msg)
             

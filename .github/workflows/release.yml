@@ -48,6 +48,18 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
 
+      - name: Inject API credentials into sidecar
+        working-directory: python-sidecar
+        shell: pwsh
+        run: |
+          $id   = "${{ secrets.TELEGRAM_API_ID }}"
+          $hash = "${{ secrets.TELEGRAM_API_HASH }}"
+          if (-not $id)   { $id   = "0" }
+          if (-not $hash) { $hash = "" }
+          $content = "TELEGRAM_API_ID = $id`nTELEGRAM_API_HASH = '$hash'`n"
+          [System.IO.File]::WriteAllText("_constants.py", $content, [System.Text.UTF8Encoding]::new($false))
+          Write-Output "Created _constants.py (TELEGRAM_API_ID=$(if ($id -ne '0') { 'set' } else { 'missing' }))"
+
       - name: Build Python sidecar with PyInstaller
         working-directory: python-sidecar
         run: pyinstaller sidecar.spec --noconfirm --log-level WARN

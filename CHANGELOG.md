@@ -4,6 +4,23 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.5.0-beta] — 2026-06-24
+
+### Added
+- **Telegram vereinfacht** — nur noch Telefonnummer nötig; API ID / API Hash werden serverseitig zur Build-Zeit eingebettet (GitHub Secrets → PyInstaller → Binary)
+- **Twitter OAuth 2.0 PKCE** — ein Klick "Mit Twitter verbinden", Browser öffnet sich, kein API-Key mehr nötig; Rust-Backend implementiert PKCE-Flow mit lokalem HTTP-Callback auf Port 8081
+- **E-Mail Auto-Detect** — IMAP/SMTP-Server wird automatisch aus der Domain erkannt (Gmail, Outlook, Yahoo, GMX, web.de, t-online.de, iCloud etc.); keine manuellen Serveradressen mehr nötig
+- **Twitter OAuth 2.0 Post-Support** — Posts über `oauth2_token` Bearer-Auth direkt an Twitter v2 API, kein Tweepy mehr nötig
+
+### Changed
+- Telegram-Verbindungsformular: api_id und api_hash entfernt (nur noch Telefonnummer)
+- Twitter-Verbindungsformular: 4 API-Key-Felder ersetzt durch einen OAuth-Button
+- E-Mail-Verbindungsformular: imap_host / smtp_host Felder entfernt (auto-detect)
+- OAuth-Button-Design: Meta/Twitter/OAuth-Plattformen zeigen grünes "✅"-Badge statt gelber Warnung
+- Version: 0.4.0 → 0.5.0
+
+---
+
 ## [0.4.0-beta] — 2026-06-24
 
 ### Added

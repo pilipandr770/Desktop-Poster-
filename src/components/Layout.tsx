@@ -38,7 +38,7 @@ const platformColors: Record<string, string> = {
   email:     "#EA4335",
 };
 
-// ── Account Panel ─────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Account Panel в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 type UpdateStatus = "idle" | "checking" | "available" | "up_to_date" | "error";
 
@@ -83,7 +83,7 @@ function AccountPanel() {
           setUpdateStatus("available");
           setLatestVersion(info.latest_version ?? null);
           toast.success(
-            `Update ${info.latest_version ?? ""} verfügbar`,
+            `Update ${info.latest_version ?? ""} verfГјgbar`,
             { duration: 8000 }
           );
         } else {
@@ -114,7 +114,7 @@ function AccountPanel() {
           setLatestVersion(info.latest_version ?? null);
         } else {
           setUpdateStatus("up_to_date");
-          toast("Alles aktuell!", { icon: "✅", duration: 3000 });
+          toast("Alles aktuell!", { icon: "вњ…", duration: 3000 });
         }
       })
       .catch(() => {
@@ -132,7 +132,7 @@ function AccountPanel() {
 
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
-      {/* ── Floating Panel ── */}
+      {/* в”Ђв”Ђ Floating Panel в”Ђв”Ђ */}
       {open && (
         <div style={{
           position: "absolute",
@@ -173,7 +173,7 @@ function AccountPanel() {
               </div>
               {validUntilStr && (
                 <span style={{ fontSize: 11, color: "var(--overlay0)" }}>
-                  Lizenz gültig bis {validUntilStr}
+                  Lizenz gГјltig bis {validUntilStr}
                 </span>
               )}
               {!license?.is_valid && (
@@ -203,10 +203,10 @@ function AccountPanel() {
                   <RefreshCw size={13} style={{ color: "var(--overlay1)", flexShrink: 0 }} />
                 )}
                 <span style={{ fontSize: 12, color: "var(--subtext0)" }}>
-                  {updateStatus === "checking" && "Suche nach Updates…"}
-                  {updateStatus === "available" && `Update ${latestVersion ?? ""} verfügbar`}
+                  {updateStatus === "checking" && "Suche nach UpdatesвЂ¦"}
+                  {updateStatus === "available" && `Update ${latestVersion ?? ""} verfГјgbar`}
                   {updateStatus === "up_to_date" && "App ist aktuell"}
-                  {updateStatus === "idle" && "Updates prüfen"}
+                  {updateStatus === "idle" && "Updates prГјfen"}
                   {updateStatus === "error" && "Update-Check fehlgeschlagen"}
                 </span>
               </div>
@@ -220,7 +220,7 @@ function AccountPanel() {
                     border: "none", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap",
                   }}
                 >
-                  {updateStatus === "available" ? "Einstellungen öffnen" : "Prüfen"}
+                  {updateStatus === "available" ? "Einstellungen Г¶ffnen" : "PrГјfen"}
                 </button>
               )}
             </div>
@@ -284,7 +284,7 @@ function AccountPanel() {
         </div>
       )}
 
-      {/* ── Chip trigger ── */}
+      {/* в”Ђв”Ђ Chip trigger в”Ђв”Ђ */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -313,7 +313,7 @@ function AccountPanel() {
           </div>
           <div style={{ fontSize: 10, color: updateStatus === "available" ? "var(--green)" : "var(--overlay0)", display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
             {updateStatus === "available" && <Download size={9} />}
-            {updateStatus === "available" ? "Update verfügbar" : license?.is_valid ? "Lizenz aktiv" : "Kein Lizenz"}
+            {updateStatus === "available" ? "Update verfГјgbar" : license?.is_valid ? "Lizenz aktiv" : "Kein Lizenz"}
           </div>
         </div>
 
@@ -330,7 +330,7 @@ function AccountPanel() {
   );
 }
 
-// ── Layout ────────────────────────────────────────────────────────────────────
+// в”Ђв”Ђ Layout в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 export default function Layout() {
   const accounts = useAccountsStore((s) => s.accounts);
@@ -349,7 +349,7 @@ export default function Layout() {
 
   return (
     <div style={{ display: "flex", height: "100%", width: "100%", background: "var(--crust)" }}>
-      {/* ── Sidebar ── */}
+      {/* в”Ђв”Ђ Sidebar в”Ђв”Ђ */}
       <aside style={{
         display: "flex",
         flexDirection: "column",
@@ -387,7 +387,7 @@ export default function Layout() {
               CrossPost
             </div>
             <div style={{ fontSize: 11, color: "var(--overlay0)", marginTop: 1 }}>
-              Desktop v0.4
+              Desktop v0.5
             </div>
           </div>
         </div>
@@ -458,12 +458,12 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* в”Ђв”Ђ Main в”Ђв”Ђ */}
       <main style={{ flex: 1, overflow: "hidden", background: "var(--base)", height: "100%", display: "flex", flexDirection: "column" }}>
         <Outlet />
       </main>
 
-      {/* ── Welcome overlay ── */}
+      {/* в”Ђв”Ђ Welcome overlay в”Ђв”Ђ */}
       {showWelcome && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 100,
@@ -495,7 +495,7 @@ export default function Layout() {
               {[
                 { num: "1", text: 'Konto verbinden unter "Konten"', action: () => { navigate("/accounts"); dismiss(); } },
                 { num: "2", text: 'Lizenz aktivieren (unten links)', action: () => { dismiss(); } },
-                { num: "3", text: "Ersten Beitrag veröffentlichen", action: () => { dismiss(); } },
+                { num: "3", text: "Ersten Beitrag verГ¶ffentlichen", action: () => { dismiss(); } },
               ].map(({ num, text, action }) => (
                 <button
                   key={num}
@@ -524,7 +524,7 @@ export default function Layout() {
               onClick={dismiss}
               style={{ color: "var(--overlay0)", fontSize: 13, background: "none", border: "none", cursor: "pointer" }}
             >
-              Überspringen
+              Гњberspringen
             </button>
           </div>
         </div>

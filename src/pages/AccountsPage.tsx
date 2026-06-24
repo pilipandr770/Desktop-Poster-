@@ -320,16 +320,10 @@ const PLATFORMS = [
     color: "#1DA1F2",
     gradient: "linear-gradient(135deg, #1DA1F2, #0d6eaf)",
     icon: Twitter,
-    fields: [
-      { key: "api_key",       label: "API Key",              type: "text",     placeholder: "Consumer Key" },
-      { key: "api_secret",    label: "API Secret",           type: "password", placeholder: "Consumer Secret" },
-      { key: "access_token",  label: "Access Token",         type: "text",     placeholder: "Access Token" },
-      { key: "access_secret", label: "Access Token Secret",  type: "password", placeholder: "Token Secret" },
-    ],
-    note: "Kostenloser Basic-Zugang reicht für Posts",
-    helpLinks: [
-      { label: "API Keys erstellen → developer.twitter.com", url: "https://developer.twitter.com/en/portal/dashboard" },
-    ],
+    fields: [],
+    note: "✅ OAuth 2.0 — kein API-Key nötig, Browser-Login",
+    helpLinks: [],
+    useTwitterOAuth: true,
   },
   {
     id: "telegram" as Platform,
@@ -338,14 +332,10 @@ const PLATFORMS = [
     gradient: "linear-gradient(135deg, #2AABEE, #1a7bbf)",
     icon: Bot,
     fields: [
-      { key: "phone",    label: "Telefonnummer", type: "text",     placeholder: "+49 160 000 0000" },
-      { key: "api_id",   label: "API ID",        type: "text",     placeholder: "12345678" },
-      { key: "api_hash", label: "API Hash",      type: "password", placeholder: "32-stelliger Hash" },
+      { key: "phone", label: "Telefonnummer", type: "text", placeholder: "+49 160 000 0000" },
     ],
-    note: "API ID und Hash aus my.telegram.org/apps",
-    helpLinks: [
-      { label: "API ID & Hash erstellen → my.telegram.org", url: "https://my.telegram.org/apps" },
-    ],
+    note: "✅ Nur Telefonnummer — Bestätigungscode wird per Telegram gesendet",
+    helpLinks: [],
   },
   {
     id: "email" as Platform,
@@ -354,12 +344,10 @@ const PLATFORMS = [
     gradient: "linear-gradient(135deg, #EA4335, #c5221f)",
     icon: Mail,
     fields: [
-      { key: "email",     label: "E-Mail-Adresse", type: "text",     placeholder: "ihre@email.de" },
-      { key: "password",  label: "Passwort / App-Passwort", type: "password", placeholder: "••••••••" },
-      { key: "imap_host", label: "IMAP-Server",    type: "text",     placeholder: "imap.gmail.com" },
-      { key: "smtp_host", label: "SMTP-Server",    type: "text",     placeholder: "smtp.gmail.com" },
+      { key: "email",    label: "E-Mail-Adresse",           type: "text",     placeholder: "ihre@email.de" },
+      { key: "password", label: "Passwort / App-Passwort",  type: "password", placeholder: "••••••••" },
     ],
-    note: "Bei Gmail: App-Passwort verwenden (2FA aktiviert)",
+    note: "Server wird automatisch erkannt · Gmail: App-Passwort verwenden",
     helpLinks: [
       { label: "Gmail App-Passwort erstellen", url: "https://myaccount.google.com/apppasswords" },
     ],
@@ -572,6 +560,28 @@ export default function AccountsPage() {
 
   const maxPerPlatform = plan === "agency" ? 10 : plan === "pro" ? 3 : 1;
 
+  const handleTwitterOAuth = async () => {
+    try {
+      setConnecting("twitter");
+      toast("🌐 Browser wird geöffnet — bitte bei Twitter / X anmelden...", { duration: 8000 });
+      const result: any = await invoke("start_twitter_oauth");
+      if (result?.success) {
+        await fetchAccounts();
+        toast.success(`✓ @${result.account.username || result.account.display_name} erfolgreich verbunden!`);
+        setExpanded(null);
+      }
+    } catch (e: any) {
+      const msg = String(e);
+      if (msg.includes("Client ID")) {
+        toast.error("Twitter Client ID fehlt. Bitte in Einstellungen → Entwickler eintragen.", { duration: 8000 });
+      } else {
+        toast.error(`Twitter OAuth Fehler: ${msg.slice(0, 120)}`, { duration: 6000 });
+      }
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const handleMetaOAuth = async (platform: Platform) => {
     try {
       setConnecting(platform);
@@ -593,6 +603,9 @@ export default function AccountsPage() {
     const cfg = PLATFORMS.find((p) => p.id === platform)!;
     if ((cfg as any).useMetaOAuth) {
       return handleMetaOAuth(platform);
+    }
+    if ((cfg as any).useTwitterOAuth) {
+      return handleTwitterOAuth();
     }
     const creds: Record<string, string> = {};
     cfg.fields.forEach((f) => {
@@ -648,11 +661,9 @@ export default function AccountsPage() {
   const handleTelegramConnect = async () => {
     const creds = {
       phone: formData["telegram_phone"]?.trim() || "",
-      api_id: formData["telegram_api_id"]?.trim() || "",
-      api_hash: formData["telegram_api_hash"]?.trim() || "",
     };
-    if (!creds.phone || !creds.api_id || !creds.api_hash) {
-      toast.error("Bitte alle Telegram-Felder ausfüllen");
+    if (!creds.phone) {
+      toast.error("Bitte Telefonnummer eingeben");
       return;
     }
     try {
@@ -685,8 +696,6 @@ export default function AccountsPage() {
   const handleTelegramVerify = async () => {
     const creds = {
       phone: formData["telegram_phone"]?.trim() || "",
-      api_id: formData["telegram_api_id"]?.trim() || "",
-      api_hash: formData["telegram_api_hash"]?.trim() || "",
     };
     if (!tgCode.trim()) {
       toast.error("Bitte den Code eingeben");
@@ -724,8 +733,6 @@ export default function AccountsPage() {
   const handleTelegram2FA = async () => {
     const creds = {
       phone: formData["telegram_phone"]?.trim() || "",
-      api_id: formData["telegram_api_id"]?.trim() || "",
-      api_hash: formData["telegram_api_hash"]?.trim() || "",
     };
     if (!tg2fa.trim()) { toast.error("Bitte das 2FA-Passwort eingeben"); return; }
     try {
@@ -951,7 +958,11 @@ export default function AccountsPage() {
 
                   {platform.note && (
                     <p className="text-xs py-2 px-3 rounded-lg"
-                      style={{ background: "var(--yellow)15", color: "var(--yellow)", borderLeft: `3px solid var(--yellow)` }}>
+                      style={{
+                        background: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)12" : "var(--yellow)15",
+                        color: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)" : "var(--yellow)",
+                        borderLeft: `3px solid ${(platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)" : "var(--yellow)"}`,
+                      }}>
                       {platform.note}
                     </p>
                   )}
@@ -973,36 +984,38 @@ export default function AccountsPage() {
                     </div>
                   )}
 
-                  {/* Fields grid */}
-                  <div className={`grid gap-3 ${platform.fields.length > 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                    {platform.fields.map((field) => (
-                      <div key={field.key}>
-                        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
-                          {field.label}
-                        </label>
-                        <input
-                          type={field.type}
-                          placeholder={field.placeholder}
-                          defaultValue=""
-                          onChange={(e) =>
-                            setFormData((prev) => ({ ...prev, [`${platform.id}_${field.key}`]: e.target.value }))
-                          }
-                          style={{
-                            background: "var(--surface0)",
-                            border: "1px solid var(--surface1)",
-                            borderRadius: 8,
-                            padding: "8px 12px",
-                            color: "var(--text)",
-                            width: "100%",
-                            fontSize: 13,
-                            outline: "none",
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = platform.color)}
-                          onBlur={(e) => (e.target.style.borderColor = "var(--surface1)")}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {/* Fields grid (hidden for OAuth-only platforms) */}
+                  {platform.fields.length > 0 && (
+                    <div className={`grid gap-3 ${platform.fields.length > 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                      {platform.fields.map((field) => (
+                        <div key={field.key}>
+                          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>
+                            {field.label}
+                          </label>
+                          <input
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            defaultValue=""
+                            onChange={(e) =>
+                              setFormData((prev) => ({ ...prev, [`${platform.id}_${field.key}`]: e.target.value }))
+                            }
+                            style={{
+                              background: "var(--surface0)",
+                              border: "1px solid var(--surface1)",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                              color: "var(--text)",
+                              width: "100%",
+                              fontSize: 13,
+                              outline: "none",
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = platform.color)}
+                            onBlur={(e) => (e.target.style.borderColor = "var(--surface1)")}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Connect button */}
                   <button
@@ -1019,6 +1032,8 @@ export default function AccountsPage() {
                       <><Loader size={15} className="animate-spin" /> Verbinde…</>
                     ) : (platform as any).useMetaOAuth ? (
                       <><Plus size={15} /> Mit Meta anmelden →</>
+                    ) : (platform as any).useTwitterOAuth ? (
+                      <><Twitter size={15} /> Mit Twitter / X verbinden →</>
                     ) : (
                       <><Plus size={15} /> Verbinden</>
                     )}
@@ -1032,24 +1047,15 @@ export default function AccountsPage() {
                   <div style={{ height: 1, background: "var(--surface0)" }} />
 
                   <p className="text-xs py-2 px-3 rounded-lg"
-                    style={{ background: "var(--yellow)15", color: "var(--yellow)", borderLeft: "3px solid var(--yellow)" }}>
-                    API ID und Hash aus my.telegram.org/apps
+                    style={{ background: "var(--green)12", color: "var(--green)", borderLeft: "3px solid var(--green)" }}>
+                    Nur Telefonnummer nötig — Code kommt per Telegram
                   </p>
-
-                  <div className="flex flex-col gap-1.5">
-                    <button onClick={() => openExternal("https://my.telegram.org/apps")}
-                      className="flex items-center gap-2 text-xs hover:underline" style={{ color: "var(--blue)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
-                      <ExternalLink size={11} /> API ID &amp; Hash erstellen → my.telegram.org
-                    </button>
-                  </div>
 
                   {tgStep === "idle" && (
                     <>
                       <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
                         {[
                           { key: "phone", label: "Telefonnummer", type: "text", placeholder: "+49 160 000 0000" },
-                          { key: "api_id", label: "API ID", type: "text", placeholder: "12345678" },
-                          { key: "api_hash", label: "API Hash", type: "password", placeholder: "32-stelliger Hash" },
                         ].map((f) => (
                           <div key={f.key}>
                             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--subtext0)" }}>

@@ -1,7 +1,7 @@
 [package]
 name = "crosspost-desktop"
 version = "0.1.0"
-description = "CrossPost Desktop — Unified Social Media Manager"
+description = "CrossPost Desktop вЂ” Unified Social Media Manager"
 authors = ["Andrii Pylypchuk <info@andrii-it.de>"]
 license = "UNLICENSED"
 repository = ""
@@ -36,6 +36,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 aes-gcm = "0.10"
 base64 = "0.22"
+sha2 = "0.10"
 rusqlite = { version = "0.31", features = ["bundled"] }
 argon2 = "0.4"
 urlencoding = "2"

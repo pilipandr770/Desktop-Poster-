@@ -178,8 +178,9 @@ fn main() {
             commands::whatsapp::check_nodejs,
             commands::whatsapp::download_nodejs,
             commands::whatsapp::setup_whatsapp_deps,
-            // Meta OAuth
+            // OAuth
             commands::oauth::start_meta_oauth,
+            commands::oauth::start_twitter_oauth,
             // Updater
             commands::updater::check_for_updates,
             commands::updater::install_update,

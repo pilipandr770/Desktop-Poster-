@@ -45,5 +45,8 @@ Thumbs.db
 .env
 .env.local
 
+# Platform API credentials injected at build time (never commit)
+python-sidecar/_constants.py
+
 # Updater signing key (KEEP SECRET)
 updater-key
