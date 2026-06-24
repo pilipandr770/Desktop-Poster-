@@ -6,7 +6,9 @@
 Unified Inbox + AI Crossposting. Все данные хранятся локально (DSGVO-конформно).
 
 **Автор:** Andrii Pylypchuk, Frankfurt am Main  
-**GitHub:** https://github.com/pilipandr770/Desktop-Poster-
+**GitHub:** https://github.com/pilipandr770/Desktop-Poster-  
+**Текущая версия:** 0.2.0-beta  
+**Последний релиз:** v0.1.0-beta (19.06.2026)
 
 ---
 
@@ -17,6 +19,7 @@ Tauri App (Rust shell)
 ├── React UI (фронтенд) — src/
 ├── Python sidecar — python-sidecar/main.py
 │   └── обрабатывает: Instagram, Facebook, LinkedIn, Twitter/X, Email, Telegram, AI
+├── WhatsApp sidecar — whatsapp-sidecar/ (Node.js + Evolution API / Baileys)
 ├── SQLite (локальная БД) — через rusqlite в Rust
 └── Наш сервер — ТОЛЬКО проверка лицензии
 ```
@@ -34,7 +37,7 @@ Tauri App (Rust shell)
 
 ---
 
-## Текущий статус разработки
+## Текущий статус разработки (v0.2.0-beta)
 
 ### ✅ ГОТОВО — React UI (src/)
 
@@ -42,21 +45,22 @@ Tauri App (Rust shell)
 |------|--------|----------|
 | `src/main.tsx` | ✅ | Router, Toaster |
 | `src/index.css` | ✅ | Catppuccin Mocha CSS vars, базовые стили |
-| `src/components/Layout.tsx` | ✅ | Sidebar + Outlet + connected accounts |
-| `src/pages/CrosspostPage.tsx` | ✅ | Переключатель Mirror/AI |
+| `src/components/Layout.tsx` | ✅ | Sidebar + Outlet + connected accounts + Quit button |
+| `src/pages/CrosspostPage.tsx` | ✅ | Переключатель Mirror / AI / Pipeline |
 | `src/pages/InboxPage.tsx` | ✅ | Unified Inbox с фильтрами и AI reply |
-| `src/pages/AccountsPage.tsx` | ✅ | Подключение аккаунтов всех платформ |
-| `src/pages/SettingsPage.tsx` | ✅ | AI настройки, задержки, автоответы |
+| `src/pages/AccountsPage.tsx` | ✅ | Подключение аккаунтов всех платформ + улучшенный UX |
+| `src/pages/SettingsPage.tsx` | ✅ | AI настройки, задержки, sync interval, start-minimised |
 | `src/pages/LicensePage.tsx` | ✅ | Активация лицензии |
 | `src/components/Crosspost/MirrorPost.tsx` | ✅ | Кросс-постинг с выбором аккаунтов |
 | `src/components/Crosspost/AICreatePost.tsx` | ✅ | AI генерация + публикация |
+| `src/components/Crosspost/PipelinePost.tsx` | ✅ | Pipeline posting — пошаговая публикация по платформам |
 | `src/store/accounts.ts` | ✅ | Zustand store с Tauri invoke |
 
 ### ✅ ГОТОВО — Python Sidecar (python-sidecar/)
 
 | Файл | Статус | Описание |
 |------|--------|----------|
-| `python-sidecar/main.py` | ✅ | Полный sidecar: Instagram, LinkedIn, Twitter, Telegram, Email, AI |
+| `python-sidecar/main.py` | ✅ | Instagram, Facebook, LinkedIn, Twitter/X, Telegram (OTP), Email, AI |
 | `python-sidecar/requirements.txt` | ✅ | instagrapi, tweepy, linkedin-api, telethon, anthropic, openai, google-generativeai |
 
 Sidecar работает через **stdin/stdout JSON lines**. Каждый вызов из Rust — отдельный процесс.
@@ -65,7 +69,7 @@ Sidecar работает через **stdin/stdout JSON lines**. Каждый в
 
 | Файл | Статус | Описание |
 |------|--------|----------|
-| `src/main.rs` | ✅ | Tauri builder, все plugins, все invoke_handler |
+| `src/main.rs` | ✅ | Tauri builder, system tray, все plugins, все invoke_handler |
 | `src/lib.rs` | ✅ | Library crate entry |
 | `src/license.rs` | ✅ | LicenseInfo struct |
 | `src/db/mod.rs` | ✅ | AppDb state, initialize() с WAL mode |
@@ -79,74 +83,40 @@ Sidecar работает через **stdin/stdout JSON lines**. Каждый в
 | `src/commands/license.rs` | ✅ | check_license, activate_license |
 | `build.rs` | ✅ | Tauri build script |
 
-### ✅ Конфигурация
+### ✅ Конфигурация и CI/CD
 
-| Файл | Статус |
-|------|--------|
-| `Cargo.toml` | ✅ rusqlite (bundled), argon2 v0.4, все Tauri plugins |
-| `tauri.conf.json` | ✅ |
-| `package.json` | ✅ |
-| `vite.config.ts` | ✅ |
-| `tailwind.config.js` | ✅ |
-| `tsconfig.json` | ✅ |
-| `.gitignore` | ✅ |
+| Файл | Статус | Описание |
+|------|--------|----------|
+| `Cargo.toml` | ✅ | rusqlite (bundled), argon2 v0.4, все Tauri plugins |
+| `tauri.conf.json` | ✅ | version 0.2.0 |
+| `package.json` | ✅ | |
+| `.github/workflows/` | ✅ | Release pipeline, GitHub Pages, auto-update landing URL |
+| `.gitignore` | ✅ | sessions/, secrets, .env |
+| `CHANGELOG.md` | ✅ | Ведётся с v0.1.0 |
+
+### ✅ Платформы
+
+| Платформа | Библиотека | Статус |
+|-----------|------------|--------|
+| Instagram | instagrapi | ✅ connect (OAuth), get_messages, send_message, post_content |
+| Facebook | instagrapi | ✅ connect (OAuth), той же handler |
+| LinkedIn | linkedin-api | ✅ connect, get_messages, post_content |
+| Twitter/X | tweepy | ✅ connect, get_messages (DM), post_content |
+| Telegram | telethon | ✅ connect (OTP), get_messages, post to groups/channels |
+| Email | smtplib/imaplib | ✅ connect, get_messages, send_message |
+| WhatsApp | Evolution API / Baileys | ⚠️ QR flow реализован, нестабилен — требует доработки |
+| AI | anthropic/openai/gemini | ✅ generate_content |
 
 ---
 
-## Что нужно реализовать (следующие шаги)
-
-### 🔴 ПРИОРИТЕТ 1 — Компиляция
-
-**Проблема:** Tauri тянет `windows` crate (огромный, ~3-4 GB RAM при компиляции).  
-**Решение:** Нужно 16+ GB RAM. На машине с 32 GB всё скомпилируется.
+## Быстрый старт (локальная разработка)
 
 ```bash
-# Первая компиляция (10-20 минут):
 cd crosspost-desktop
 npm install
-cargo install tauri-cli  # если не установлен
-npm run tauri dev
+cd python-sidecar && pip install -r requirements.txt && cd ..
+npm run tauri dev   # первая компиляция ~10-20 мин, нужно 16+ GB RAM
 ```
-
-### 🔴 ПРИОРИТЕТ 2 — Python зависимости
-
-```bash
-cd python-sidecar
-pip install -r requirements.txt
-```
-
-### 🟡 ПРИОРИТЕТ 3 — Функциональные доработки
-
-1. **Python sidecar — сессии Instagram:**
-   - Instagrapi требует сохранения сессии между вызовами
-   - Сейчас каждый вызов создаёт новый Client — добавить кэш сессий в JSON файл
-
-2. **Планировщик постов:**
-   - В БД таблица `scheduled_posts` и `posts` готова
-   - Нужен фоновый поток в Rust (tokio::spawn) для проверки scheduled_at каждую минуту
-
-3. **WhatsApp через Evolution API:**
-   - Отдельный Node.js sidecar (Evolution API локально)
-   - Документация: https://doc.evolution-api.com
-
-4. **Лицензионный сервер:**
-   - Сейчас `activate_license` принимает любой токен
-   - TODO: HTTP запрос к `https://license.crosspost-desktop.de/verify`
-   - В `commands/license.rs` уже есть комментарий TODO
-
-5. **Медиа загрузка (Tauri file dialog):**
-   - В MirrorPost.tsx кнопка "Bild/Video hinzufügen" помечена как TODO
-   - Использовать `tauri-plugin-dialog` для выбора файла
-
-6. **Sync сообщений (фоновый):**
-   - Каждые N минут вызывать Python sidecar `get_messages` для каждого аккаунта
-   - Сохранять новые сообщения в БД
-
-### 🟢 ПРИОРИТЕТ 4 — Полировка
-
-- Tauri tray icon (сворачивание в трей)
-- Notifications при новых сообщениях (tauri-plugin-notification)
-- Сборка Windows installer (`npm run tauri build`)
 
 ---
 
@@ -154,40 +124,70 @@ pip install -r requirements.txt
 
 Rust в `commands/sidecar.rs` вызывает `call_python(command: Value)`:
 1. Запускает `python python-sidecar/main.py`
-2. Пишет JSON в stdin: `{"action": "connect", "platform": "instagram", "params": {...}}`
+2. Пишет JSON в stdin: `{"action": "...", "platform": "...", "params": {...}}`
 3. Закрывает stdin → Python читает одну строку, выполняет, пишет ответ в stdout
 4. Rust читает первую строку stdout как JSON ответ
-
-Формат команды:
-```json
-{
-  "action": "connect|get_messages|send_message|post_content|generate_content",
-  "platform": "instagram|facebook|linkedin|twitter|telegram|email|ai",
-  "params": { ... }
-}
-```
 
 ---
 
 ## Credentials — хранение
 
-Credentials хранятся в таблице `settings` с ключом `creds_{account_id}` как JSON строка.
+Credentials хранятся в таблице `settings` с ключом `creds_{account_id}` как JSON строка.  
+Telegram-сессии (`.session` файлы) хранятся в `src-tauri/sessions/` — исключены из git.  
 Планируется перевести на `tauri-plugin-stronghold` (AES-256).
 
 ---
 
-## Платформы
+## Что нужно реализовать (приоритизированный план)
 
-| Платформа | Библиотека | Статус sidecar |
-|-----------|------------|----------------|
-| Instagram | instagrapi | ✅ connect, get_messages, send_message, post_content |
-| Facebook | instagrapi | ✅ (тот же handler) |
-| LinkedIn | linkedin-api | ✅ connect, get_messages, post_content |
-| Twitter/X | tweepy | ✅ connect, get_messages (DM), post_content |
-| Telegram | telethon | ✅ connect, get_messages, post_content |
-| Email | smtplib/imaplib | ✅ connect, get_messages, send_message |
-| WhatsApp | Evolution API | ❌ не реализовано (отдельный Node.js sidecar) |
-| AI | anthropic/openai/gemini | ✅ generate_content |
+### 🔴 ПРИОРИТЕТ 1 — Стабильность и безопасность
+
+1. **Лицензионный сервер** (`commands/license.rs`)
+   - Сейчас `activate_license` принимает любой токен
+   - Реализовать HTTP запрос к `https://license.crosspost-desktop.de/verify`
+   - Добавить offline grace period (хранить timestamp последней валидации)
+
+2. **Credentials в Stronghold**
+   - Перевести `creds_{account_id}` из SQLite в `tauri-plugin-stronghold` (AES-256)
+   - Особенно важно для Twitter API keys и Telegram session
+
+3. **WhatsApp стабилизация**
+   - Evolution API / Baileys работает нестабильно
+   - Рассмотреть официальный WhatsApp Business API как альтернативу
+
+### 🟡 ПРИОРИТЕТ 2 — Функциональные доработки
+
+4. **Планировщик постов**
+   - В БД таблица `posts` с `scheduled_at` готова
+   - Нужен фоновый поток в Rust (`tokio::spawn`) для проверки каждую минуту
+   - UI для выбора даты/времени публикации
+
+5. **Медиа загрузка**
+   - В MirrorPost.tsx и PipelinePost.tsx кнопка "Bild/Video hinzufügen" — TODO
+   - Использовать `tauri-plugin-dialog` для выбора файла
+   - Передавать путь/base64 в Python sidecar
+
+6. **Фоновый sync сообщений**
+   - Каждые N минут (из настроек) вызывать `get_messages` для каждого аккаунта
+   - Сохранять в БД, показывать badge на иконке трея
+
+7. **Instagram сессии**
+   - Instagrapi: добавить кэш сессий в JSON файл, не создавать Client на каждый вызов
+
+### 🟢 ПРИОРИТЕТ 3 — Полировка и монетизация
+
+8. **Stripe / LemonSqueezy интеграция**
+   - Форма оплаты на лэндинге → выдача лицензионного ключа
+   - Webhook для деактивации при отмене подписки
+
+9. **Onboarding flow**
+   - Welcome screen при первом запуске
+   - Пошаговый мастер подключения первого аккаунта
+
+10. **Сборка и дистрибуция**
+    - `npm run tauri build` → Windows installer (.msi / .exe)
+    - Code signing (EV сертификат для Defender SmartScreen)
+    - Mac build через GitHub Actions (self-hosted runner или cross-compile)
 
 ---
 
@@ -195,7 +195,7 @@ Credentials хранятся в таблице `settings` с ключом `creds
 
 ```
 Solo    €29/мес — 1 аккаунт каждой платформы
-Pro     €79/мес — 3 аккаунта + AI генерация
+Pro     €79/мес — 3 аккаунта + AI генерация + Pipeline posting
 Agency  €199/мес — 10 аккаунтов + white label
 ```
 
