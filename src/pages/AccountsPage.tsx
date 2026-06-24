@@ -225,9 +225,9 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
     );
   }
 
-  if (step === "qr" || step === "starting") return (
+  if (step === "qr" || (step as string) === "starting") return (
     <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-      {step === "starting" || !qrImage ? (
+      {(step as string) === "starting" || !qrImage ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--subtext0)", fontSize: 13 }}>
           <Loader size={16} className="animate-spin" />
           WhatsApp-Server wird gestartet…

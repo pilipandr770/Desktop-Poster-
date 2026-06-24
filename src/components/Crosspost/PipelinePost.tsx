@@ -232,7 +232,7 @@ export default function PipelinePost() {
         setStatuses((s) => ({ ...s, [id]: "done" }));
       } catch (e: any) {
         setStatuses((s) => ({ ...s, [id]: "error" }));
-        toast.error(`Fehler bei ${accounts.find((a) => a.id === id)?.name ?? id}: ${e}`);
+        toast.error(`Fehler bei ${accounts.find((a) => a.id === id)?.display_name ?? id}: ${e}`);
       }
     }
     setPosting(false);
@@ -313,7 +313,7 @@ export default function PipelinePost() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0 }} />
                     <span>{LABELS[acc.platform]}</span>
-                    <span style={{ opacity: 0.6, fontSize: 12 }}>{acc.name}</span>
+                    <span style={{ opacity: 0.6, fontSize: 12 }}>{acc.display_name}</span>
                   </button>
                 );
               })}
@@ -460,7 +460,7 @@ export default function PipelinePost() {
                         flexShrink: 0,
                       }} />
                       <span>{LABELS[acc.platform]}</span>
-                      <span style={{ opacity: 0.6, fontSize: 12 }}>{acc.name}</span>
+                      <span style={{ opacity: 0.6, fontSize: 12 }}>{acc.display_name}</span>
                       {status === "posting" && <Loader size={12} style={{ animation: "spin 1s linear infinite" }} />}
                       {status === "done" && <CheckCircle size={12} style={{ color: "#22c55e" }} />}
                       {status === "error" && <AlertCircle size={12} style={{ color: "#f87171" }} />}
