@@ -4,6 +4,19 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.3.0-beta] — 2026-06-24
+
+### Added
+- **Onboarding welcome screen** — shown on first launch with 3-step setup guide (connect account → activate license → first post)
+- **Auto-update notification** — checks for updates on startup, shows toast with link to Settings
+- **Pipeline media passthrough** — PipelinePost now forwards `media_url` from source post to all destination platforms
+
+### Changed
+- Sidebar version label updated to v0.2
+- App version bumped to 0.3.0
+
+---
+
 ## [0.2.0-beta] — 2026-06-24
 
 ### Added
