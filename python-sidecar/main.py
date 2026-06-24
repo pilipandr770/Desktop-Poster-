@@ -740,6 +740,11 @@ class EmailHandler:
         import imaplib
         import socket
         import ssl
+
+        # Google OAuth path: use XOAUTH2 if google_oauth_token present
+        if credentials.get("google_oauth_token"):
+            return self._connect_google_oauth(credentials)
+
         email_addr = credentials["email"]
         password = credentials["password"]
         # Auto-detect IMAP server from email domain if not provided
@@ -785,15 +790,39 @@ class EmailHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def _connect_google_oauth(self, credentials: dict) -> dict:
+        """Connect via IMAP XOAUTH2 using Google OAuth token."""
+        import imaplib, base64
+        email_addr = credentials.get("email", "")
+        token = credentials["google_oauth_token"]
+        auth_string = f"user={email_addr}\x01auth=Bearer {token}\x01\x01"
+        auth_b64 = base64.b64encode(auth_string.encode()).decode()
+        try:
+            imap = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+            imap.authenticate("XOAUTH2", lambda x: auth_b64)
+            imap.logout()
+            return {"success": True, "profile": {"name": email_addr, "username": email_addr}}
+        except Exception as e:
+            return {"success": False, "error": f"Gmail OAuth IMAP: {e}"}
+
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
             import imaplib
             import email
             from email.header import decode_header
-            detected_imap, _ = _detect_email_servers(credentials["email"])
+            detected_imap, _ = _detect_email_servers(credentials.get("email", ""))
             imap_host = credentials.get("imap_host") or detected_imap
             imap = imaplib.IMAP4_SSL(imap_host, int(credentials.get("imap_port", 993)))
-            imap.login(credentials["email"], credentials["password"])
+            # Use XOAUTH2 if Google token present, else password login
+            if credentials.get("google_oauth_token"):
+                import base64
+                email_addr = credentials.get("email", "")
+                token = credentials["google_oauth_token"]
+                auth_string = f"user={email_addr}\x01auth=Bearer {token}\x01\x01"
+                auth_b64 = base64.b64encode(auth_string.encode()).decode()
+                imap.authenticate("XOAUTH2", lambda x: auth_b64)
+            else:
+                imap.login(credentials["email"], credentials["password"])
             imap.select("INBOX")
             
             _, msg_ids = imap.search(None, "ALL")

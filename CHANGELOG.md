@@ -4,6 +4,21 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.6.0-beta] — 2026-06-24
+
+### Added
+- **Gmail OAuth 2.0 PKCE** — ein Klick "Mit Google anmelden", Browser öffnet sich; Rust-Backend implementiert PKCE-Flow auf Port 8082; XOAUTH2-Login in Python EmailHandler (kein App-Passwort mehr für Gmail nötig)
+- **Meta App Secret eingebettet** — META_APP_SECRET wird zur Build-Zeit aus GitHub Secrets eingebettet (gleiche Methode wie TWITTER_CLIENT_ID); Nutzer müssen keinen App-Secret manuell konfigurieren
+- **Google Client ID eingebettet** — GOOGLE_CLIENT_ID wird zur Build-Zeit aus GitHub Secrets eingebettet
+- **Gmail als eigene Plattform** — separates Gmail-Konto neben allgemeinem E-Mail für Outlook/GMX/etc.
+
+### Changed
+- Email-Plattform: Gmail entfernt, zeigt jetzt nur IMAP/SMTP für Nicht-Google-Anbieter
+- `build.rs`: verarbeitet nun alle drei OAuth-Secrets (TWITTER_CLIENT_ID, META_APP_SECRET, GOOGLE_CLIENT_ID) in einer Schleife
+- `release.yml`: META_APP_SECRET und GOOGLE_CLIENT_ID werden jetzt als Build-Umgebungsvariablen übergeben
+
+---
+
 ## [0.5.0-beta] — 2026-06-24
 
 ### Added

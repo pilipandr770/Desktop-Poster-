@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type Platform =
   | "instagram" | "facebook" | "whatsapp"
-  | "linkedin"  | "twitter"  | "telegram" | "email";
+  | "linkedin"  | "twitter"  | "telegram" | "email" | "gmail";
 
 export interface Account {
   id: string;

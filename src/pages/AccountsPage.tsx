@@ -338,19 +338,28 @@ const PLATFORMS = [
     helpLinks: [],
   },
   {
+    id: "gmail" as Platform,
+    label: "Gmail (Google-Konto)",
+    color: "#EA4335",
+    gradient: "linear-gradient(135deg, #EA4335, #FBBC05)",
+    icon: Mail,
+    fields: [],
+    note: "✅ OAuth 2.0 — kein Passwort, kein App-Passwort nötig",
+    helpLinks: [],
+    useGoogleOAuth: true,
+  },
+  {
     id: "email" as Platform,
     label: "E-Mail (IMAP/SMTP)",
-    color: "#EA4335",
-    gradient: "linear-gradient(135deg, #EA4335, #c5221f)",
+    color: "#7287fd",
+    gradient: "linear-gradient(135deg, #7287fd, #4a5ebe)",
     icon: Mail,
     fields: [
       { key: "email",    label: "E-Mail-Adresse",           type: "text",     placeholder: "ihre@email.de" },
       { key: "password", label: "Passwort / App-Passwort",  type: "password", placeholder: "••••••••" },
     ],
-    note: "Server wird automatisch erkannt · Gmail: App-Passwort verwenden",
-    helpLinks: [
-      { label: "Gmail App-Passwort erstellen", url: "https://myaccount.google.com/apppasswords" },
-    ],
+    note: "Server wird automatisch erkannt · Outlook, Yahoo, GMX, web.de, etc.",
+    helpLinks: [],
   },
 ];
 
@@ -582,6 +591,28 @@ export default function AccountsPage() {
     }
   };
 
+  const handleGoogleOAuth = async () => {
+    try {
+      setConnecting("gmail");
+      toast("🌐 Browser wird geöffnet — bitte mit Google-Konto anmelden...", { duration: 8000 });
+      const result: any = await invoke("start_google_oauth");
+      if (result?.success) {
+        await fetchAccounts();
+        toast.success(`✓ ${result.account.display_name} (${result.account.username}) erfolgreich verbunden!`);
+        setExpanded(null);
+      }
+    } catch (e: any) {
+      const msg = String(e);
+      if (msg.includes("Client ID")) {
+        toast.error("Google Client ID fehlt. Bitte in Einstellungen → Entwickler eintragen.", { duration: 8000 });
+      } else {
+        toast.error(`Google OAuth Fehler: ${msg.slice(0, 120)}`, { duration: 6000 });
+      }
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const handleMetaOAuth = async (platform: Platform) => {
     try {
       setConnecting(platform);
@@ -606,6 +637,9 @@ export default function AccountsPage() {
     }
     if ((cfg as any).useTwitterOAuth) {
       return handleTwitterOAuth();
+    }
+    if ((cfg as any).useGoogleOAuth) {
+      return handleGoogleOAuth();
     }
     const creds: Record<string, string> = {};
     cfg.fields.forEach((f) => {
@@ -1034,6 +1068,8 @@ export default function AccountsPage() {
                       <><Plus size={15} /> Mit Meta anmelden →</>
                     ) : (platform as any).useTwitterOAuth ? (
                       <><Twitter size={15} /> Mit Twitter / X verbinden →</>
+                    ) : (platform as any).useGoogleOAuth ? (
+                      <><Mail size={15} /> Mit Google anmelden →</>
                     ) : (
                       <><Plus size={15} /> Verbinden</>
                     )}

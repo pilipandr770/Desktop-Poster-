@@ -79,6 +79,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
       # ── Collect artifacts ────────────────────────────────────────────────────
       - name: Find installers

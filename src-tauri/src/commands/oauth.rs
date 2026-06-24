@@ -12,6 +12,26 @@ use uuid::Uuid;
 const META_APP_ID: &str = "1696429314893660";
 const REDIRECT_URI: &str = "http://localhost:8080";
 
+// Embedded at compile time from META_APP_SECRET env var (set in CI from GitHub Secrets).
+macro_rules! meta_app_secret_builtin {
+    () => {
+        match option_env!("META_APP_SECRET") {
+            Some(v) => v,
+            None => "",
+        }
+    };
+}
+
+// Embedded at compile time from GOOGLE_CLIENT_ID env var (set in CI from GitHub Secrets).
+macro_rules! google_client_id_builtin {
+    () => {
+        match option_env!("GOOGLE_CLIENT_ID") {
+            Some(v) => v,
+            None => "",
+        }
+    };
+}
+
 fn oauth_scope(platform: &str) -> &str {
     match platform {
         "instagram" => {
@@ -31,8 +51,11 @@ pub async fn start_meta_oauth(
     app: AppHandle,
     platform: String,
 ) -> Result<Value, String> {
-    // Load App Secret from settings table
-    let app_secret = {
+    // Prefer compile-time constant; fall back to runtime DB setting
+    let builtin_secret = meta_app_secret_builtin!();
+    let app_secret = if !builtin_secret.is_empty() {
+        builtin_secret.to_string()
+    } else {
         let db = app.state::<AppDb>();
         let conn = db.0.lock().map_err(|e| e.to_string())?;
         conn.query_row(
@@ -278,6 +301,200 @@ async fn resolve_instagram_account(
          Bitte verbinden Sie Instagram mit Ihrer Facebook-Seite."
             .to_string(),
     )
+}
+
+// ─── Google OAuth 2.0 PKCE ───────────────────────────────────────────────────
+
+const GOOGLE_REDIRECT_URI: &str = "http://127.0.0.1:8082/callback";
+
+/// Opens system browser for Google OAuth 2.0 PKCE flow (Gmail).
+/// Catches redirect on localhost:8082, exchanges code for token, saves to DB.
+#[tauri::command]
+pub async fn start_google_oauth(app: AppHandle) -> Result<Value, String> {
+    let builtin = google_client_id_builtin!();
+    let client_id = if !builtin.is_empty() {
+        builtin.to_string()
+    } else {
+        let db = app.state::<AppDb>();
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'google_client_id'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+    };
+
+    if client_id.is_empty() {
+        return Err(
+            "Google Client ID nicht konfiguriert. Bitte in Einstellungen → Entwickler eintragen."
+                .to_string(),
+        );
+    }
+
+    // PKCE: code_verifier = two UUIDs concatenated as hex (64 URL-safe chars)
+    let code_verifier = format!(
+        "{}{}",
+        Uuid::new_v4().to_string().replace('-', ""),
+        Uuid::new_v4().to_string().replace('-', "")
+    );
+
+    // code_challenge = BASE64URL(SHA256(code_verifier))
+    let hash = Sha256::digest(code_verifier.as_bytes());
+    let code_challenge = general_purpose::URL_SAFE_NO_PAD.encode(hash);
+
+    let state_token = Uuid::new_v4().to_string();
+
+    let scope = urlencoding::encode(
+        "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+    );
+
+    let oauth_url = format!(
+        "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256&access_type=offline&prompt=consent",
+        client_id,
+        urlencoding::encode(GOOGLE_REDIRECT_URI),
+        scope,
+        state_token,
+        code_challenge
+    );
+
+    app.opener()
+        .open_url(&oauth_url, None::<&str>)
+        .map_err(|e| e.to_string())?;
+
+    // Wait for OAuth redirect on localhost:8082
+    let code = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let listener = TcpListener::bind("127.0.0.1:8082")
+            .map_err(|e| format!("Port 8082 belegt: {}", e))?;
+
+        let (mut stream, _) = listener.accept().map_err(|e| e.to_string())?;
+
+        let mut reader = BufReader::new(&stream);
+        let mut request_line = String::new();
+        reader
+            .read_line(&mut request_line)
+            .map_err(|e| e.to_string())?;
+
+        let code = extract_code_from_request(&request_line)?;
+
+        let html = "<html><head><meta charset='utf-8'></head><body style='font-family:sans-serif;text-align:center;padding:60px'>\
+            <h2 style='color:#4CAF50'>✅ Gmail erfolgreich verbunden!</h2>\
+            <p>Sie können dieses Fenster jetzt schließen und zu CrossPost Desktop zurückkehren.</p>\
+            </body></html>";
+        let _ = write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            html.len(),
+            html
+        );
+        stream.flush().ok();
+        Ok(code)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let http = reqwest::Client::new();
+
+    // Exchange code for tokens (Desktop app PKCE — no client_secret needed)
+    let token_resp: Value = http
+        .post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", GOOGLE_REDIRECT_URI),
+            ("code_verifier", code_verifier.as_str()),
+            ("client_id", client_id.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| format!("Token-Anfrage fehlgeschlagen: {}", e))?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(err) = token_resp.get("error") {
+        let desc = token_resp
+            .get("error_description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        return Err(format!("Google OAuth Fehler: {} — {}", err, desc));
+    }
+
+    let access_token = token_resp["access_token"]
+        .as_str()
+        .ok_or("Kein access_token erhalten")?
+        .to_string();
+
+    let refresh_token = token_resp["refresh_token"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Get Google user info
+    let user_resp: Value = http
+        .get("https://www.googleapis.com/oauth2/v3/userinfo")
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let display_name = user_resp["name"]
+        .as_str()
+        .unwrap_or("Gmail User")
+        .to_string();
+    let email = user_resp["email"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Save account to DB
+    let db = app.state::<AppDb>();
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let account_id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let creds = serde_json::json!({
+        "google_oauth_token": access_token,
+        "refresh_token": refresh_token,
+        "email": email,
+        "platform": "gmail"
+    });
+    let creds_json = serde_json::to_string(&creds).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO accounts (id, platform, display_name, username, stronghold_key, status, last_sync)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'connected', ?6)",
+        params![
+            account_id,
+            "gmail",
+            display_name,
+            email,
+            format!("account_{}", account_id),
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+        params![format!("creds_{}", account_id), creds_json],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "success": true,
+        "account": {
+            "id": account_id,
+            "platform": "gmail",
+            "display_name": display_name,
+            "username": email,
+            "status": "connected"
+        }
+    }))
 }
 
 fn extract_code_from_request(request_line: &str) -> Result<String, String> {
