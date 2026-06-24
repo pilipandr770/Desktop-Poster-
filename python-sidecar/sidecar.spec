@@ -6,7 +6,23 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['linkedin_api', 'bs4', 'lxml'],
+    hiddenimports=[
+        # LinkedIn
+        'linkedin_api', 'linkedin_api.clients',
+        'bs4', 'lxml', 'lxml.etree',
+        # Instagram / Facebook
+        'instagrapi', 'instagrapi.mixins',
+        # Twitter
+        'tweepy', 'tweepy.asynchronous',
+        # Telegram
+        'telethon', 'telethon.sessions', 'telethon.crypto',
+        # AI
+        'anthropic', 'openai',
+        'google.generativeai', 'google.auth',
+        # Utilities
+        'PIL', 'PIL.Image', 'requests', 'dotenv',
+        'cryptography', 'cryptography.hazmat.primitives',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
