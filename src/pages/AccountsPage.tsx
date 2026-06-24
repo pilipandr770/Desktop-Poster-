@@ -1004,7 +1004,7 @@ export default function AccountsPage() {
                   {/* Help links */}
                   {platform.helpLinks.length > 0 && (
                     <div className="flex flex-col gap-1.5">
-                      {platform.helpLinks.map((link) => (
+                      {(platform.helpLinks as { label: string; url: string }[]).map((link) => (
                         <button
                           key={link.url}
                           onClick={() => openExternal(link.url)}
