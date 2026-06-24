@@ -1,12 +1,14 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  Send, Inbox, Users, Settings, Key,
+  Send, Inbox, Users, Settings,
   Instagram, Facebook, MessageCircle, Linkedin,
-  Twitter, Mail, Bot, Circle, Zap, LogOut, Download
+  Twitter, Mail, Bot, Circle, Zap, LogOut,
+  ChevronUp, RefreshCw, Download, ExternalLink,
+  CheckCircle, AlertCircle, Loader, Crown
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAccountsStore } from "../store/accounts";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
 
 const navItems = [
@@ -36,6 +38,300 @@ const platformColors: Record<string, string> = {
   email:     "#EA4335",
 };
 
+// ── Account Panel ─────────────────────────────────────────────────────────────
+
+type UpdateStatus = "idle" | "checking" | "available" | "up_to_date" | "error";
+
+interface LicenseInfo {
+  is_valid: boolean;
+  plan: string | null;
+  valid_until: string | null;
+  message: string;
+}
+
+interface UpdateInfo {
+  available: boolean;
+  latest_version?: string;
+}
+
+function AccountPanel() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [license, setLicense] = useState<LicenseInfo | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>("idle");
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const plan = license?.plan?.toLowerCase() ?? "solo";
+  const planLabel = plan === "agency" ? "Agency" : plan === "pro" ? "Pro" : "Solo";
+  const planColor = plan === "agency" ? "var(--mauve)" : plan === "pro" ? "var(--blue)" : "var(--overlay1)";
+  const planBg    = plan === "agency" ? "var(--mauve)22" : plan === "pro" ? "var(--blue)22" : "var(--surface1)";
+
+  // Load license once on mount
+  useEffect(() => {
+    invoke<LicenseInfo>("check_license")
+      .then(setLicense)
+      .catch(() => setLicense({ is_valid: false, plan: null, valid_until: null, message: "" }));
+  }, []);
+
+  // Check for updates once on mount (silent unless available)
+  useEffect(() => {
+    setUpdateStatus("checking");
+    invoke<UpdateInfo>("check_for_updates")
+      .then((info) => {
+        if (info.available) {
+          setUpdateStatus("available");
+          setLatestVersion(info.latest_version ?? null);
+          toast.success(
+            `Update ${info.latest_version ?? ""} verfügbar`,
+            { duration: 8000 }
+          );
+        } else {
+          setUpdateStatus("up_to_date");
+        }
+      })
+      .catch(() => setUpdateStatus("error"));
+  }, []);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleCheckUpdates = () => {
+    setUpdateStatus("checking");
+    invoke<UpdateInfo>("check_for_updates")
+      .then((info) => {
+        if (info.available) {
+          setUpdateStatus("available");
+          setLatestVersion(info.latest_version ?? null);
+        } else {
+          setUpdateStatus("up_to_date");
+          toast("Alles aktuell!", { icon: "✅", duration: 3000 });
+        }
+      })
+      .catch(() => {
+        setUpdateStatus("error");
+        toast.error("Verbindungsfehler beim Update-Check");
+      });
+  };
+
+  const validUntilStr = license?.valid_until
+    ? new Date(license.valid_until).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : null;
+
+  // Avatar initials derived from plan
+  const avatarLetter = planLabel[0].toUpperCase();
+
+  return (
+    <div ref={panelRef} style={{ position: "relative" }}>
+      {/* ── Floating Panel ── */}
+      {open && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(100% + 8px)",
+          left: 0,
+          right: 0,
+          background: "var(--mantle)",
+          border: "1.5px solid var(--surface1)",
+          borderRadius: 14,
+          boxShadow: "0 -8px 32px rgba(0,0,0,0.4)",
+          overflow: "hidden",
+          zIndex: 200,
+        }}>
+          {/* Plan header */}
+          <div style={{
+            padding: "14px 16px 12px",
+            borderBottom: "1px solid var(--surface0)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+              background: `linear-gradient(135deg, ${planColor}, ${planColor}88)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16, fontWeight: 700, color: "#11111b",
+            }}>
+              {avatarLetter}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
+                  CrossPost {planLabel}
+                </span>
+                {license?.is_valid && (
+                  <CheckCircle size={13} style={{ color: "var(--green)" }} />
+                )}
+              </div>
+              {validUntilStr && (
+                <span style={{ fontSize: 11, color: "var(--overlay0)" }}>
+                  Lizenz gültig bis {validUntilStr}
+                </span>
+              )}
+              {!license?.is_valid && (
+                <span style={{ fontSize: 11, color: "var(--yellow)" }}>
+                  Keine aktive Lizenz
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Update section */}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--surface0)" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {updateStatus === "checking" && (
+                  <Loader size={13} style={{ color: "var(--blue)", flexShrink: 0 }} className="animate-spin" />
+                )}
+                {updateStatus === "available" && (
+                  <Download size={13} style={{ color: "var(--green)", flexShrink: 0 }} />
+                )}
+                {updateStatus === "up_to_date" && (
+                  <CheckCircle size={13} style={{ color: "var(--green)", flexShrink: 0 }} />
+                )}
+                {(updateStatus === "idle" || updateStatus === "error") && (
+                  <RefreshCw size={13} style={{ color: "var(--overlay1)", flexShrink: 0 }} />
+                )}
+                <span style={{ fontSize: 12, color: "var(--subtext0)" }}>
+                  {updateStatus === "checking" && "Suche nach Updates…"}
+                  {updateStatus === "available" && `Update ${latestVersion ?? ""} verfügbar`}
+                  {updateStatus === "up_to_date" && "App ist aktuell"}
+                  {updateStatus === "idle" && "Updates prüfen"}
+                  {updateStatus === "error" && "Update-Check fehlgeschlagen"}
+                </span>
+              </div>
+              {updateStatus !== "checking" && (
+                <button
+                  onClick={handleCheckUpdates}
+                  style={{
+                    fontSize: 11, padding: "3px 8px", borderRadius: 6,
+                    background: updateStatus === "available" ? "var(--green)22" : "var(--surface1)",
+                    color: updateStatus === "available" ? "var(--green)" : "var(--overlay1)",
+                    border: "none", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap",
+                  }}
+                >
+                  {updateStatus === "available" ? "Einstellungen öffnen" : "Prüfen"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
+            <button
+              onClick={() => { setOpen(false); navigate("/license"); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "8px 10px", borderRadius: 8,
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 13, color: "var(--subtext1)", textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface0)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            >
+              <Crown size={14} style={{ color: planColor }} />
+              Lizenz &amp; Plan
+            </button>
+
+            {plan !== "agency" && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  invoke("open_external_url", { url: "https://pilipandr770.github.io/Desktop-Poster-/#pricing" })
+                    .catch(() => {});
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  width: "100%", padding: "8px 10px", borderRadius: 8,
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 13, color: "var(--mauve)", textAlign: "left",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--mauve)11")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                <ExternalLink size={14} />
+                {plan === "pro" ? "Auf Agency upgraden" : "Plan upgraden"}
+              </button>
+            )}
+
+            <div style={{ height: 1, background: "var(--surface0)", margin: "4px 2px" }} />
+
+            <button
+              onClick={() => invoke("plugin:process|exit", { code: 0 }).catch(() => window.close())}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "8px 10px", borderRadius: 8,
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 13, color: "var(--overlay1)", textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface0)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            >
+              <LogOut size={14} />
+              Beenden
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chip trigger ── */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          width: "100%", padding: "10px 12px",
+          background: open ? "var(--surface0)" : "none",
+          border: "none", cursor: "pointer", borderRadius: 10,
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "var(--surface0)"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "none"; }}
+      >
+        {/* Avatar */}
+        <div style={{
+          width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+          background: `linear-gradient(135deg, ${planColor}, ${planColor}88)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 13, fontWeight: 700, color: "#11111b",
+        }}>
+          {avatarLetter}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.2 }}>
+            CrossPost {planLabel}
+          </div>
+          <div style={{ fontSize: 10, color: updateStatus === "available" ? "var(--green)" : "var(--overlay0)", display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
+            {updateStatus === "available" && <Download size={9} />}
+            {updateStatus === "available" ? "Update verfügbar" : license?.is_valid ? "Lizenz aktiv" : "Kein Lizenz"}
+          </div>
+        </div>
+
+        <ChevronUp
+          size={14}
+          style={{
+            color: "var(--overlay1)",
+            transition: "transform 0.2s",
+            transform: open ? "rotate(0deg)" : "rotate(180deg)",
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+
 export default function Layout() {
   const accounts = useAccountsStore((s) => s.accounts);
   const fetchAccounts = useAccountsStore((s) => s.fetchAccounts);
@@ -43,27 +339,12 @@ export default function Layout() {
   const navigate = useNavigate();
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Load accounts on mount, show welcome if none connected
   useEffect(() => {
     fetchAccounts().then(() => {
       const hasAccounts = useAccountsStore.getState().accounts.length > 0;
       const dismissed = localStorage.getItem("welcome_dismissed");
       if (!hasAccounts && !dismissed) setShowWelcome(true);
     });
-  }, []);
-
-  // Check for updates once on startup (silent unless update available)
-  useEffect(() => {
-    invoke<{ available: boolean; latest_version?: string }>("check_for_updates")
-      .then((info) => {
-        if (info.available) {
-          toast.success(
-            `Update ${info.latest_version ?? ""} verfügbar — Einstellungen öffnen`,
-            { duration: 8000 }
-          );
-        }
-      })
-      .catch(() => {}); // Silently ignore network errors
   }, []);
 
   return (
@@ -106,7 +387,7 @@ export default function Layout() {
               CrossPost
             </div>
             <div style={{ fontSize: 11, color: "var(--overlay0)", marginTop: 1 }}>
-              Desktop v0.2
+              Desktop v0.4
             </div>
           </div>
         </div>
@@ -171,24 +452,9 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Bottom: License + Quit */}
-        <div style={{ padding: "8px 10px", borderTop: "1.5px solid var(--surface0)", display: "flex", flexDirection: "column", gap: 2 }}>
-          <NavLink
-            to="/license"
-            className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
-            style={{ fontSize: 12, color: "var(--overlay0)" }}
-          >
-            <Key size={14} />
-            Lizenz
-          </NavLink>
-          <button
-            onClick={() => invoke("plugin:process|exit", { code: 0 }).catch(() => window.close())}
-            className="nav-link"
-            style={{ fontSize: 12, color: "var(--overlay0)", width: "100%", textAlign: "left", border: "none", cursor: "pointer" }}
-          >
-            <LogOut size={14} />
-            Beenden
-          </button>
+        {/* Account Panel (bottom-left) */}
+        <div style={{ padding: "8px 10px", borderTop: "1.5px solid var(--surface0)" }}>
+          <AccountPanel />
         </div>
       </aside>
 
@@ -228,7 +494,7 @@ export default function Layout() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
               {[
                 { num: "1", text: 'Konto verbinden unter "Konten"', action: () => { navigate("/accounts"); dismiss(); } },
-                { num: "2", text: 'Lizenz aktivieren unter "Lizenz"', action: () => { navigate("/license"); dismiss(); } },
+                { num: "2", text: 'Lizenz aktivieren (unten links)', action: () => { dismiss(); } },
                 { num: "3", text: "Ersten Beitrag veröffentlichen", action: () => { dismiss(); } },
               ].map(({ num, text, action }) => (
                 <button
