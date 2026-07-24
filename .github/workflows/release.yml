@@ -153,6 +153,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           make_latest: false
           fail_on_unmatched_files: false
+          update_existing: true
           body: |
             ## CrossPost Desktop ${{ github.ref_name }}
 
