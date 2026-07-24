@@ -306,13 +306,10 @@ const PLATFORMS = [
     color: "#0A66C2",
     gradient: "linear-gradient(135deg, #0A66C2, #004182)",
     icon: Linkedin,
-    fields: [
-      { key: "email",    label: "E-Mail",   type: "text",     placeholder: "email@example.com" },
-      { key: "password", label: "Passwort", type: "password", placeholder: "LinkedIn-Passwort" },
-    ],
-    note: "Verwendet inoffizielles API — kein offizieller Key nötig",
+    fields: [],
+    note: "✅ OAuth 2.0 — offizieller LinkedIn-Login, kein Passwort gespeichert",
     helpLinks: [],
-    useLinkedInCookie: true,
+    useLinkedInOAuth: true,
   },
   {
     id: "twitter" as Platform,
@@ -613,6 +610,28 @@ export default function AccountsPage() {
     }
   };
 
+  const handleLinkedInOAuth = async () => {
+    try {
+      setConnecting("linkedin");
+      toast("🌐 Browser wird geöffnet — bitte bei LinkedIn anmelden...", { duration: 8000 });
+      const result: any = await invoke("start_linkedin_oauth");
+      if (result?.success) {
+        await fetchAccounts();
+        toast.success(`✓ ${result.account.display_name} (${result.account.username}) erfolgreich verbunden!`);
+        setExpanded(null);
+      }
+    } catch (e: any) {
+      const msg = String(e);
+      if (msg.includes("Client ID") || msg.includes("client_id")) {
+        toast.error("LinkedIn Client ID fehlt. Bitte in GitHub Secrets eintragen.", { duration: 8000 });
+      } else {
+        toast.error(`LinkedIn OAuth Fehler: ${msg.slice(0, 120)}`, { duration: 6000 });
+      }
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const handleMetaOAuth = async (platform: Platform) => {
     try {
       setConnecting(platform);
@@ -640,6 +659,9 @@ export default function AccountsPage() {
     }
     if ((cfg as any).useGoogleOAuth) {
       return handleGoogleOAuth();
+    }
+    if ((cfg as any).useLinkedInOAuth) {
+      return handleLinkedInOAuth();
     }
     const creds: Record<string, string> = {};
     cfg.fields.forEach((f) => {
@@ -993,9 +1015,9 @@ export default function AccountsPage() {
                   {platform.note && (
                     <p className="text-xs py-2 px-3 rounded-lg"
                       style={{
-                        background: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)12" : "var(--yellow)15",
-                        color: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)" : "var(--yellow)",
-                        borderLeft: `3px solid ${(platform as any).useMetaOAuth || (platform as any).useTwitterOAuth ? "var(--green)" : "var(--yellow)"}`,
+                        background: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth || (platform as any).useGoogleOAuth || (platform as any).useLinkedInOAuth ? "var(--green)12" : "var(--yellow)15",
+                        color: (platform as any).useMetaOAuth || (platform as any).useTwitterOAuth || (platform as any).useGoogleOAuth || (platform as any).useLinkedInOAuth ? "var(--green)" : "var(--yellow)",
+                        borderLeft: `3px solid ${(platform as any).useMetaOAuth || (platform as any).useTwitterOAuth || (platform as any).useGoogleOAuth || (platform as any).useLinkedInOAuth ? "var(--green)" : "var(--yellow)"}`,
                       }}>
                       {platform.note}
                     </p>
@@ -1070,6 +1092,8 @@ export default function AccountsPage() {
                       <><Twitter size={15} /> Mit Twitter / X verbinden →</>
                     ) : (platform as any).useGoogleOAuth ? (
                       <><Mail size={15} /> Mit Google anmelden →</>
+                    ) : (platform as any).useLinkedInOAuth ? (
+                      <><Linkedin size={15} /> Mit LinkedIn anmelden →</>
                     ) : (
                       <><Plus size={15} /> Verbinden</>
                     )}

@@ -282,8 +282,31 @@ class LinkedInHandler:
             raise ValueError("Bitte E-Mail und Passwort oder li_at Cookie angeben.")
         return Linkedin(email, password)
 
+    def _connect_linkedin_oauth(self, oauth_token: str) -> dict:
+        """Connect using official LinkedIn OAuth 2.0 Bearer token."""
+        import requests
+        headers = {
+            "Authorization": f"Bearer {oauth_token}",
+            "Content-Type": "application/json",
+        }
+        try:
+            resp = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers, timeout=15)
+            if resp.status_code == 401:
+                return {"success": False, "error": "LinkedIn OAuth Token abgelaufen. Bitte erneut anmelden."}
+            resp.raise_for_status()
+            data = resp.json()
+            name = f"{data.get('given_name', '')} {data.get('family_name', '')}".strip() or data.get("name", "LinkedIn")
+            sub = data.get("sub", "")
+            email = data.get("email", "")
+            return {"success": True, "profile": {"name": name, "username": sub or email}}
+        except Exception as e:
+            return {"success": False, "error": f"LinkedIn OAuth Fehler: {e}"}
+
     def connect(self, credentials: dict) -> dict:
         try:
+            oauth_token = credentials.get("oauth_token", "").strip()
+            if oauth_token:
+                return self._connect_linkedin_oauth(oauth_token)
             li_at = credentials.get("li_at", "").strip()
             if li_at:
                 first, last, slug = self._linkedin_check_auth(li_at)
@@ -316,6 +339,10 @@ class LinkedInHandler:
     
     def get_messages(self, credentials: dict, limit: int = 20) -> dict:
         try:
+            oauth_token = credentials.get("oauth_token", "").strip()
+            if oauth_token:
+                # LinkedIn API v2 does not expose messaging to third-party apps without special partner access
+                return {"success": True, "messages": [], "note": "LinkedIn Nachrichten erfordern Partner-API-Zugang."}
             api = self._get_api(credentials)
             conversations = api.get_conversations()
             messages = []
@@ -497,6 +524,31 @@ class LinkedInHandler:
 
     def post_content(self, credentials: dict, content: str) -> dict:
         try:
+            oauth_token = credentials.get("oauth_token", "").strip()
+            linkedin_id = credentials.get("linkedin_id", "").strip()
+            if oauth_token and linkedin_id:
+                import requests
+                human_delay(2.0, 6.0)
+                headers = {
+                    "Authorization": f"Bearer {oauth_token}",
+                    "Content-Type": "application/json",
+                    "X-Restli-Protocol-Version": "2.0.0",
+                }
+                body = {
+                    "author": f"urn:li:person:{linkedin_id}",
+                    "lifecycleState": "PUBLISHED",
+                    "specificContent": {
+                        "com.linkedin.ugc.ShareContent": {
+                            "shareCommentary": {"text": content},
+                            "shareMediaCategory": "NONE",
+                        }
+                    },
+                    "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
+                }
+                resp = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=headers, json=body, timeout=20)
+                if resp.status_code in (200, 201):
+                    return {"success": True}
+                return {"success": False, "error": f"LinkedIn API {resp.status_code}: {resp.text[:200]}"}
             api = self._get_api(credentials)
             human_delay(3.0, 12.0)
             # LinkedIn post через API

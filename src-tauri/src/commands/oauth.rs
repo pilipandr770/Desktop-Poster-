@@ -32,6 +32,25 @@ macro_rules! google_client_id_builtin {
     };
 }
 
+// LinkedIn OAuth 2.0 credentials embedded at compile time.
+macro_rules! linkedin_client_id_builtin {
+    () => {
+        match option_env!("LINKEDIN_CLIENT_ID") {
+            Some(v) => v,
+            None => "",
+        }
+    };
+}
+
+macro_rules! linkedin_client_secret_builtin {
+    () => {
+        match option_env!("LINKEDIN_CLIENT_SECRET") {
+            Some(v) => v,
+            None => "",
+        }
+    };
+}
+
 fn oauth_scope(platform: &str) -> &str {
     match platform {
         "instagram" => {
@@ -714,6 +733,198 @@ pub async fn start_twitter_oauth(app: AppHandle) -> Result<Value, String> {
             "platform": "twitter",
             "display_name": twitter_name,
             "username": twitter_username,
+            "status": "connected"
+        }
+    }))
+}
+
+// ─── LinkedIn OAuth 2.0 ───────────────────────────────────────────────────────
+
+const LINKEDIN_REDIRECT_URI: &str = "http://127.0.0.1:8083/callback";
+
+/// Opens system browser for LinkedIn OAuth 2.0 flow.
+/// Catches redirect on localhost:8083, exchanges code for token, saves to DB.
+#[tauri::command]
+pub async fn start_linkedin_oauth(app: AppHandle) -> Result<Value, String> {
+    let builtin_id = linkedin_client_id_builtin!();
+    let client_id = if !builtin_id.is_empty() {
+        builtin_id.to_string()
+    } else {
+        let db = app.state::<AppDb>();
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'linkedin_client_id'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+    };
+
+    let builtin_secret = linkedin_client_secret_builtin!();
+    let client_secret = if !builtin_secret.is_empty() {
+        builtin_secret.to_string()
+    } else {
+        let db = app.state::<AppDb>();
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT value FROM settings WHERE key = 'linkedin_client_secret'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+    };
+
+    if client_id.is_empty() {
+        return Err(
+            "LinkedIn Client ID nicht konfiguriert.".to_string(),
+        );
+    }
+
+    let state_token = Uuid::new_v4().to_string();
+
+    let scope = urlencoding::encode("openid profile email w_member_social");
+
+    let oauth_url = format!(
+        "https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}",
+        client_id,
+        urlencoding::encode(LINKEDIN_REDIRECT_URI),
+        scope,
+        state_token
+    );
+
+    app.opener()
+        .open_url(&oauth_url, None::<&str>)
+        .map_err(|e| e.to_string())?;
+
+    // Wait for OAuth redirect on localhost:8083
+    let code = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let listener = TcpListener::bind("127.0.0.1:8083")
+            .map_err(|e| format!("Port 8083 belegt: {}", e))?;
+
+        let (mut stream, _) = listener.accept().map_err(|e| e.to_string())?;
+
+        let mut reader = BufReader::new(&stream);
+        let mut request_line = String::new();
+        reader
+            .read_line(&mut request_line)
+            .map_err(|e| e.to_string())?;
+
+        let code = extract_code_from_request(&request_line)?;
+
+        let html = "<html><head><meta charset='utf-8'></head><body style='font-family:sans-serif;text-align:center;padding:60px'>\
+            <h2 style='color:#4CAF50'>✅ LinkedIn erfolgreich verbunden!</h2>\
+            <p>Sie können dieses Fenster jetzt schließen und zu CrossPost Desktop zurückkehren.</p>\
+            </body></html>";
+        let _ = write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            html.len(),
+            html
+        );
+        stream.flush().ok();
+        Ok(code)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    let http = reqwest::Client::new();
+
+    // Exchange code for access token
+    let token_resp: Value = http
+        .post("https://www.linkedin.com/oauth/v2/accessToken")
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", LINKEDIN_REDIRECT_URI),
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| format!("Token-Anfrage fehlgeschlagen: {}", e))?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(err) = token_resp.get("error") {
+        let desc = token_resp
+            .get("error_description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        return Err(format!("LinkedIn OAuth Fehler: {} — {}", err, desc));
+    }
+
+    let access_token = token_resp["access_token"]
+        .as_str()
+        .ok_or("Kein access_token erhalten")?
+        .to_string();
+
+    // Get LinkedIn user info via OpenID Connect userinfo endpoint
+    let user_resp: Value = http
+        .get("https://api.linkedin.com/v2/userinfo")
+        .bearer_auth(&access_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let display_name = user_resp["name"]
+        .as_str()
+        .unwrap_or("LinkedIn User")
+        .to_string();
+    let email = user_resp["email"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let sub = user_resp["sub"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    // Save account to DB
+    let db = app.state::<AppDb>();
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let account_id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let creds = serde_json::json!({
+        "oauth_token": access_token,
+        "email": email,
+        "linkedin_id": sub,
+        "platform": "linkedin"
+    });
+    let creds_json = serde_json::to_string(&creds).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO accounts (id, platform, display_name, username, stronghold_key, status, last_sync)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'connected', ?6)",
+        params![
+            account_id,
+            "linkedin",
+            display_name,
+            email,
+            format!("account_{}", account_id),
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+        params![format!("creds_{}", account_id), creds_json],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "success": true,
+        "account": {
+            "id": account_id,
+            "platform": "linkedin",
+            "display_name": display_name,
+            "username": email,
             "status": "connected"
         }
     }))

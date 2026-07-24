@@ -182,6 +182,7 @@ fn main() {
             commands::oauth::start_meta_oauth,
             commands::oauth::start_twitter_oauth,
             commands::oauth::start_google_oauth,
+            commands::oauth::start_linkedin_oauth,
             // Updater
             commands::updater::check_for_updates,
             commands::updater::install_update,
