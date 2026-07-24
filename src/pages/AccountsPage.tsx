@@ -46,16 +46,35 @@ function WhatsAppConnect({ onConnected }: { onConnected: (phone: string) => void
       await invoke("setup_whatsapp_deps");
       setStep("starting");
       await invoke("start_whatsapp_sidecar");
-      // wait a moment for server to start
-      await new Promise(r => setTimeout(r, 1500));
-      await invoke<any>("whatsapp_call", { method: "POST", path: "/instance/init", body: null });
+
+      // Retry init until sidecar is ready (up to 15s)
+      let initOk = false;
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        try {
+          await invoke<any>("whatsapp_call", { method: "POST", path: "/instance/init", body: null });
+          initOk = true;
+          break;
+        } catch { /* not ready yet */ }
+      }
+      if (!initOk) throw new Error("WhatsApp-Server antwortet nicht. Bitte erneut versuchen.");
+
       setStep("qr");
+
+      // Auto-timeout after 5 minutes
+      const timeoutId = setTimeout(() => {
+        stopPoll();
+        setStep("error");
+        setErrorMsg("Zeitüberschreitung: QR-Code wurde nicht gescannt (5 Min). Bitte erneut versuchen.");
+      }, 5 * 60 * 1000);
+
       // Poll for QR / connection
       pollRef.current = setInterval(async () => {
         try {
           const res = await invoke<any>("whatsapp_call", { method: "GET", path: "/instance/qr", body: null });
           if (res.connected) {
             stopPoll();
+            clearTimeout(timeoutId);
             const status = await invoke<any>("whatsapp_call", { method: "GET", path: "/instance/status", body: null });
             setPhone(status.phone || "WhatsApp");
             setStep("connected");
