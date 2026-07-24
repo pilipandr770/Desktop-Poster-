@@ -1,8 +1,15 @@
 import { useState } from "react";
-import { Wand2, Send, Loader, CheckCircle, XCircle } from "lucide-react";
+import { Wand2, Send, Loader, CheckCircle, XCircle, Calendar, Clock } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAccountsStore } from "../../store/accounts";
 import toast from "react-hot-toast";
+
+function localDatetimeValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+type PostMode = "now" | "schedule";
 
 const PLATFORMS = [
   { id: "instagram", label: "Instagram", color: "#E1306C" },
@@ -26,6 +33,12 @@ export default function AICreatePost() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [generated, setGenerated] = useState<GeneratedContent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [postMode, setPostMode] = useState<PostMode>("now");
+  const defaultScheduled = () => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
+    return localDatetimeValue(d);
+  };
+  const [scheduledAt, setScheduledAt] = useState<string>(defaultScheduled());
 
   const connectedPlatforms = PLATFORMS.filter((p) =>
     accounts.some((a) => a.platform === p.id && a.status === "connected")
@@ -82,6 +95,32 @@ export default function AICreatePost() {
   };
 
   const postAll = async () => {
+    if (postMode === "schedule") {
+      const isoAt = new Date(scheduledAt).toISOString();
+      for (const item of generated) {
+        if (item.status !== "ready") continue;
+        const account = accounts.find((a) => a.platform === item.platform && a.status === "connected");
+        if (!account) continue;
+        try {
+          await invoke("create_scheduled_post", {
+            content: item.content,
+            platforms: [item.platform],
+            accountIds: [account.id],
+            scheduledAt: isoAt,
+          });
+          setGenerated((prev) =>
+            prev.map((g) => (g.platform === item.platform ? { ...g, status: "done" } : g))
+          );
+        } catch (e: any) {
+          setGenerated((prev) =>
+            prev.map((g) => (g.platform === item.platform ? { ...g, status: "error", error: e.message } : g))
+          );
+        }
+      }
+      toast.success(`Geplant für ${new Date(scheduledAt).toLocaleString("de-DE")}`);
+      return;
+    }
+
     for (const item of generated) {
       if (item.status !== "ready") continue;
 
@@ -196,14 +235,54 @@ export default function AICreatePost() {
               Generierte Inhalte
             </h3>
             {readyCount > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {/* Jetzt / Planen */}
+              <div style={{ display: "flex", background: "var(--surface0)", borderRadius: 10, padding: 3, gap: 2 }}>
+                {([
+                  { id: "now",      icon: Send,     label: "Jetzt" },
+                  { id: "schedule", icon: Calendar, label: "Planen" },
+                ] as const).map(({ id, icon: Icon, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setPostMode(id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "6px 12px", borderRadius: 8, fontSize: 12,
+                      fontWeight: postMode === id ? 600 : 400,
+                      background: postMode === id ? "var(--base)" : "transparent",
+                      color: postMode === id ? "var(--text)" : "var(--overlay1)",
+                      border: "none", cursor: "pointer",
+                      boxShadow: postMode === id ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
+                    }}
+                  >
+                    <Icon size={12} /> {label}
+                  </button>
+                ))}
+              </div>
+              {postMode === "schedule" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Clock size={13} style={{ color: "var(--overlay1)" }} />
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={localDatetimeValue(new Date())}
+                    style={{
+                      background: "var(--surface0)", border: "1px solid var(--surface1)",
+                      borderRadius: 8, color: "var(--text)", padding: "5px 10px", fontSize: 12,
+                    }}
+                  />
+                </div>
+              )}
               <button
                 onClick={postAll}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ background: "var(--green)", color: "var(--crust)" }}
+                style={{ background: postMode === "schedule" ? "var(--blue)" : "var(--green)", color: "var(--crust)" }}
               >
-                <Send size={14} />
-                Alle veröffentlichen ({readyCount})
+                {postMode === "schedule" ? <Calendar size={14} /> : <Send size={14} />}
+                {postMode === "schedule" ? `Planen (${readyCount})` : `Alle veröffentlichen (${readyCount})`}
               </button>
+            </div>
             )}
           </div>
 
