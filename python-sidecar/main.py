@@ -616,15 +616,39 @@ class TwitterHandler:
         # Twitter Free tier doesn't allow reading tweets via API
         return {"success": False, "error": "Twitter Free Tier erlaubt kein Lesen von Tweets. Bitte LinkedIn oder Instagram als Quelle verwenden."}
 
-    def post_content(self, credentials: dict, content: str) -> dict:
+    def _upload_media_twitter(self, credentials: dict, media_path: str) -> str | None:
+        """Upload local file to Twitter v1.1 media/upload, return media_id string."""
+        import tweepy, pathlib
+        auth = tweepy.OAuth1UserHandler(
+            credentials["api_key"], credentials["api_secret"],
+            credentials["access_token"], credentials["access_secret"]
+        )
+        api = tweepy.API(auth)
+        media = api.media_upload(filename=str(pathlib.Path(media_path)))
+        return str(media.media_id)
+
+    def post_content(self, credentials: dict, content: str, media_path: str = None) -> dict:
         try:
             text = content[:277] + "..." if len(content) > 280 else content
             human_delay(2.0, 6.0)
+
+            media_ids = None
+            # Media upload only supported via OAuth 1.0a (v1.1 API)
+            if media_path and credentials.get("api_key"):
+                try:
+                    media_id = self._upload_media_twitter(credentials, media_path)
+                    media_ids = [media_id]
+                except Exception as me:
+                    pass  # post without media if upload fails
+
             if credentials.get("oauth2_token"):
+                body = {"text": text}
+                if media_ids:
+                    body["media"] = {"media_ids": media_ids}
                 result = self._oauth2_request("POST",
                     "https://api.twitter.com/2/tweets",
                     credentials["oauth2_token"],
-                    {"text": text})
+                    body)
                 if "errors" in result:
                     return {"success": False, "error": result["errors"][0].get("message", "Twitter API Fehler")}
                 return {"success": True, "post_id": result.get("data", {}).get("id", "")}
@@ -636,7 +660,7 @@ class TwitterHandler:
                 access_token=credentials["access_token"],
                 access_token_secret=credentials["access_secret"]
             )
-            tweet = client.create_tweet(text=text)
+            tweet = client.create_tweet(text=text, media_ids=media_ids)
             return {"success": True, "post_id": str(tweet.data["id"])}
         except Exception as e:
             err = str(e)
@@ -771,14 +795,18 @@ class TelegramHandler:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def post_content(self, credentials: dict, channel: str, content: str) -> dict:
+    def post_content(self, credentials: dict, channel: str, content: str, media_path: str = None) -> dict:
         try:
             from telethon.sync import TelegramClient
+            import pathlib
             session = self._session_path(credentials["phone"])
             client = TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH)
             client.connect()
             human_delay(1.0, 4.0)
-            client.send_message(channel, content)
+            if media_path and pathlib.Path(media_path).exists():
+                client.send_file(channel, media_path, caption=content)
+            else:
+                client.send_message(channel, content)
             client.disconnect()
             return {"success": True}
         except Exception as e:
