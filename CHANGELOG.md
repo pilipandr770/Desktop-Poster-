@@ -10,11 +10,19 @@ All notable changes to CrossPost Desktop are documented here.
 - **LinkedIn OAuth 2.0** — ein Klick "Mit LinkedIn anmelden"; kein Passwort, keine Cookies mehr nötig; Rust-Backend implementiert Authorization Code Flow auf Port 8083; speichert `oauth_token`, `email`, `linkedin_id` in DB
 - **LinkedIn ugcPosts API** — Postveröffentlichung über offizielle LinkedIn API v2 mit Bearer-Token
 - **compile-time LinkedIn Secrets** — LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET werden zur Build-Zeit aus GitHub Secrets eingebettet
+- **Planen-Modus in AICreatePost** — Jetzt/Planen-Umschalter + datetime-Picker; KI-generierte Inhalte können für alle Plattformen geplant werden
+- **Twitter Medien-Upload** — lokale Bilder/Videos werden über Twitter v1.1 `media/upload` hochgeladen und an Tweets angehängt (OAuth 1.0a)
+- **Telegram Medien-Senden** — lokale Dateien werden per `send_file` an Kanäle/Gruppen gesendet (Telethon)
+
+### Fixed
+- **WhatsApp QR-Flow** — Retry-Schleife (10×1,5s) beim Sidecar-Start statt festem 1,5s-Delay; 5-Minuten-Timeout wenn QR nicht gescannt wird; bessere Fehlermeldungen
+- **release.yml** — `update_existing: true` verhindert Fehler wenn Relase-Tag bereits existiert (Re-Run-Szenario)
 
 ### Changed
 - LinkedIn-Konto: Cookie/Passwort-Formular entfernt, ersetzt durch OAuth-Button "Mit LinkedIn anmelden →"
 - `build.rs`: verarbeitet nun 5 OAuth-Secrets inkl. LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET
 - `release.yml`: LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET als Build-Umgebungsvariablen
+- **Posteingang** — Nachrichten werden beim Anklicken automatisch als gelesen markiert; neuer "Nur ungelesen"-Toggle-Button (Auge-Icon)
 
 ---
 
