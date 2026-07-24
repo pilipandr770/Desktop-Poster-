@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, Bot, Send, Inbox } from "lucide-react";
+import { RefreshCw, Bot, Send, Inbox, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Message {
@@ -46,8 +46,12 @@ export default function InboxPage() {
 
   useEffect(() => { fetchMessages(); }, []);
 
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+
   const unread   = messages.filter((m) => !m.is_read && m.direction === "incoming");
-  const filtered = filter === "all" ? messages : messages.filter((m) => m.platform === filter);
+  const filtered = messages
+    .filter((m) => filter === "all" || m.platform === filter)
+    .filter((m) => !showUnreadOnly || (!m.is_read && m.direction === "incoming"));
   const platforms = [...new Set(messages.map((m) => m.platform))];
 
   const sendReply = async () => {
@@ -59,6 +63,16 @@ export default function InboxPage() {
       fetchMessages();
     } catch (e: any) {
       toast.error(`Fehler: ${e.message}`);
+    }
+  };
+
+  const selectMessage = async (msg: Message) => {
+    setSelected(msg);
+    if (!msg.is_read && msg.direction === "incoming") {
+      try {
+        await invoke("mark_as_read", { messageId: msg.id });
+        setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_read: true } : m));
+      } catch { /* ok */ }
     }
   };
 
@@ -95,13 +109,26 @@ export default function InboxPage() {
               </div>
             )}
           </div>
-          <button
-            onClick={fetchMessages}
-            disabled={loading}
-            style={{ padding: 6, borderRadius: 8, color: "var(--overlay1)", transition: "all 0.15s" }}
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              onClick={() => setShowUnreadOnly((v) => !v)}
+              title={showUnreadOnly ? "Alle anzeigen" : "Nur ungelesen"}
+              style={{
+                padding: 6, borderRadius: 8, transition: "all 0.15s",
+                color: showUnreadOnly ? "var(--blue)" : "var(--overlay1)",
+                background: showUnreadOnly ? "var(--blue)18" : "transparent",
+              }}
+            >
+              {showUnreadOnly ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button
+              onClick={fetchMessages}
+              disabled={loading}
+              style={{ padding: 6, borderRadius: 8, color: "var(--overlay1)", transition: "all 0.15s" }}
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
 
         {/* Platform filter */}
@@ -171,7 +198,7 @@ export default function InboxPage() {
               return (
                 <button
                   key={msg.id}
-                  onClick={() => setSelected(msg)}
+                  onClick={() => selectMessage(msg)}
                   style={{
                     width: "100%",
                     textAlign: "left",
