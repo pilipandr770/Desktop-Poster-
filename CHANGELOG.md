@@ -4,6 +4,20 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.7.0-beta] — 2026-07-24
+
+### Added
+- **LinkedIn OAuth 2.0** — ein Klick "Mit LinkedIn anmelden"; kein Passwort, keine Cookies mehr nötig; Rust-Backend implementiert Authorization Code Flow auf Port 8083; speichert `oauth_token`, `email`, `linkedin_id` in DB
+- **LinkedIn ugcPosts API** — Postveröffentlichung über offizielle LinkedIn API v2 mit Bearer-Token
+- **compile-time LinkedIn Secrets** — LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET werden zur Build-Zeit aus GitHub Secrets eingebettet
+
+### Changed
+- LinkedIn-Konto: Cookie/Passwort-Formular entfernt, ersetzt durch OAuth-Button "Mit LinkedIn anmelden →"
+- `build.rs`: verarbeitet nun 5 OAuth-Secrets inkl. LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET
+- `release.yml`: LINKEDIN_CLIENT_ID und LINKEDIN_CLIENT_SECRET als Build-Umgebungsvariablen
+
+---
+
 ## [0.6.0-beta] — 2026-06-24
 
 ### Added
