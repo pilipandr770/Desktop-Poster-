@@ -165,12 +165,21 @@ fn main() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::save_setting,
+            commands::settings::get_setting_value,
             commands::settings::open_external_url,
             // Sidecar
             commands::sidecar::start_python_sidecar,
             commands::sidecar::stop_python_sidecar,
             commands::sidecar::send_to_sidecar,
             commands::sidecar::generate_ai_content,
+            // Media generation
+            commands::media::generate_image,
+            commands::media::generate_avatar,
+            commands::media::generate_video,
+            commands::media::generate_voice,
+            commands::media::list_avatars,
+            commands::media::list_voices,
+            commands::media::list_media_files,
             // WhatsApp
             commands::whatsapp::start_whatsapp_sidecar,
             commands::whatsapp::stop_whatsapp_sidecar,

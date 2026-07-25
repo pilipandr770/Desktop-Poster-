@@ -1031,6 +1031,362 @@ class AIHandler:
             return {"success": False, "error": str(e)}
 
 
+# ─── Media Generation Handlers ────────────────────────────────────────────────
+
+class ImageGenHandler:
+    """Image generation: DALL-E 3 + Google Imagen 3"""
+
+    def generate_image(self, provider: str, api_key: str, prompt: str,
+                       aspect_ratio: str = "1:1", output_dir: str = ".") -> dict:
+        import uuid, os, urllib.request, base64
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"{uuid.uuid4()}.jpg"
+        filepath = os.path.join(output_dir, filename)
+
+        try:
+            if provider == "dalle3":
+                import openai
+                size_map = {
+                    "1:1": "1024x1024", "16:9": "1792x1024",
+                    "9:16": "1024x1792", "4:5": "1024x1024",
+                }
+                size = size_map.get(aspect_ratio, "1024x1024")
+                client = openai.OpenAI(api_key=api_key)
+                resp = client.images.generate(
+                    model="dall-e-3", prompt=prompt, size=size, quality="standard", n=1
+                )
+                url = resp.data[0].url
+                urllib.request.urlretrieve(url, filepath)
+                return {"success": True, "path": filepath, "provider": "dall-e-3"}
+
+            elif provider == "imagen3":
+                import urllib.parse
+                ar_map = {"1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "4:5": "4:5"}
+                ar = ar_map.get(aspect_ratio, "1:1")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={api_key}"
+                payload = json.dumps({
+                    "instances": [{"prompt": prompt}],
+                    "parameters": {"sampleCount": 1, "aspectRatio": ar}
+                }).encode()
+                req = urllib.request.Request(url, data=payload,
+                                             headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    data = json.loads(r.read())
+                b64 = data["predictions"][0]["bytesBase64Encoded"]
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(b64))
+                return {"success": True, "path": filepath, "provider": "imagen-3"}
+
+            elif provider == "sdxl":
+                import urllib.parse
+                url = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
+                ar_map = {"1:1": (1024, 1024), "16:9": (1344, 768), "9:16": (768, 1344), "4:5": (896, 1152)}
+                w, h = ar_map.get(aspect_ratio, (1024, 1024))
+                payload = json.dumps({
+                    "text_prompts": [{"text": prompt, "weight": 1}],
+                    "width": w, "height": h, "samples": 1, "steps": 30
+                }).encode()
+                req = urllib.request.Request(url, data=payload, headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {api_key}"
+                })
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    data = json.loads(r.read())
+                b64 = data["artifacts"][0]["base64"]
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(b64))
+                return {"success": True, "path": filepath, "provider": "sdxl"}
+
+            else:
+                return {"success": False, "error": f"Unknown image provider: {provider}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+class AvatarGenHandler:
+    """Talking avatar video: HeyGen / D-ID"""
+
+    def generate_avatar(self, provider: str, api_key: str, text: str,
+                        avatar_id: str = "", voice_id: str = "",
+                        output_dir: str = ".") -> dict:
+        import uuid, os, time, urllib.request
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"{uuid.uuid4()}.mp4"
+        filepath = os.path.join(output_dir, filename)
+
+        try:
+            if provider == "heygen":
+                headers = {"X-Api-Key": api_key, "Content-Type": "application/json"}
+
+                # Defaults
+                av_id = avatar_id or "Angela-inTshirt-20220820"
+                v_id  = voice_id  or "2d5b0e6cf36f460aa7fc47e3eee4ba54"
+
+                payload = json.dumps({
+                    "video_inputs": [{
+                        "character": {"type": "avatar", "avatar_id": av_id, "avatar_style": "normal"},
+                        "voice": {"type": "text", "input_text": text, "voice_id": v_id}
+                    }],
+                    "dimension": {"width": 1280, "height": 720}
+                }).encode()
+                req = urllib.request.Request(
+                    "https://api.heygen.com/v2/video/generate",
+                    data=payload,
+                    headers=headers
+                )
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    result = json.loads(r.read())
+                video_id = result["data"]["video_id"]
+
+                # Poll for completion (max 5 min)
+                for _ in range(60):
+                    time.sleep(5)
+                    status_req = urllib.request.Request(
+                        f"https://api.heygen.com/v1/video_status.get?video_id={video_id}",
+                        headers=headers
+                    )
+                    with urllib.request.urlopen(status_req, timeout=15) as r:
+                        status_data = json.loads(r.read())
+                    st = status_data["data"]["status"]
+                    if st == "completed":
+                        video_url = status_data["data"]["video_url"]
+                        urllib.request.urlretrieve(video_url, filepath)
+                        return {"success": True, "path": filepath, "provider": "heygen"}
+                    elif st in ("failed", "error"):
+                        return {"success": False, "error": "HeyGen video generation failed"}
+
+                return {"success": False, "error": "HeyGen timeout (>5 min)"}
+
+            elif provider == "did":
+                headers = {
+                    "Authorization": f"Basic {api_key}",
+                    "Content-Type": "application/json"
+                }
+                source_url = avatar_id or "https://d-id-talks-prod.s3.us-east-1.amazonaws.com/google-oauth2%7C104621384671716540371/skg4kEBnBf/image.jpeg"
+                payload = json.dumps({
+                    "script": {"type": "text", "input": text, "provider": {"type": "microsoft", "voice_id": voice_id or "de-DE-KatjaNeural"}},
+                    "source_url": source_url
+                }).encode()
+                req = urllib.request.Request(
+                    "https://api.d-id.com/talks",
+                    data=payload, headers=headers
+                )
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    result = json.loads(r.read())
+                talk_id = result["id"]
+
+                for _ in range(60):
+                    time.sleep(5)
+                    get_req = urllib.request.Request(
+                        f"https://api.d-id.com/talks/{talk_id}",
+                        headers=headers
+                    )
+                    with urllib.request.urlopen(get_req, timeout=15) as r:
+                        status_data = json.loads(r.read())
+                    if status_data["status"] == "done":
+                        urllib.request.urlretrieve(status_data["result_url"], filepath)
+                        return {"success": True, "path": filepath, "provider": "d-id"}
+                    elif status_data["status"] == "error":
+                        return {"success": False, "error": status_data.get("error", {}).get("description", "D-ID error")}
+
+                return {"success": False, "error": "D-ID timeout"}
+
+            else:
+                return {"success": False, "error": f"Unknown avatar provider: {provider}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def list_avatars(self, provider: str, api_key: str) -> dict:
+        """Fetch available avatar/voice IDs from the provider."""
+        import urllib.request
+        try:
+            if provider == "heygen":
+                req = urllib.request.Request(
+                    "https://api.heygen.com/v2/avatars",
+                    headers={"X-Api-Key": api_key}
+                )
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data = json.loads(r.read())
+                avatars = [{"id": a["avatar_id"], "name": a.get("avatar_name", a["avatar_id"])}
+                           for a in data.get("data", {}).get("avatars", [])]
+                return {"success": True, "avatars": avatars}
+            return {"success": True, "avatars": []}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+class VideoGenHandler:
+    """Short video generation: Runway Gen-3"""
+
+    def generate_video(self, provider: str, api_key: str, prompt: str,
+                       image_path: str = "", duration: int = 5,
+                       ratio: str = "1280:720", output_dir: str = ".") -> dict:
+        import uuid, os, time, urllib.request, base64
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"{uuid.uuid4()}.mp4"
+        filepath = os.path.join(output_dir, filename)
+
+        try:
+            if provider == "runway":
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "X-Runway-Version": "2024-11-06"
+                }
+
+                # Build payload
+                payload_data: dict = {
+                    "model": "gen3a_turbo",
+                    "promptText": prompt,
+                    "duration": duration,
+                    "ratio": ratio
+                }
+                if image_path and os.path.exists(image_path):
+                    with open(image_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode()
+                    ext = os.path.splitext(image_path)[1].lstrip(".").lower() or "jpeg"
+                    payload_data["promptImage"] = f"data:image/{ext};base64,{b64}"
+
+                payload = json.dumps(payload_data).encode()
+                req = urllib.request.Request(
+                    "https://api.runwayml.com/v1/image_to_video",
+                    data=payload, headers=headers
+                )
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    result = json.loads(r.read())
+                task_id = result["id"]
+
+                # Poll (max 5 min)
+                for _ in range(60):
+                    time.sleep(5)
+                    status_req = urllib.request.Request(
+                        f"https://api.runwayml.com/v1/tasks/{task_id}",
+                        headers=headers
+                    )
+                    with urllib.request.urlopen(status_req, timeout=15) as r:
+                        status_data = json.loads(r.read())
+                    st = status_data.get("status", "")
+                    if st == "SUCCEEDED":
+                        video_url = status_data["output"][0]
+                        urllib.request.urlretrieve(video_url, filepath)
+                        return {"success": True, "path": filepath, "provider": "runway"}
+                    elif st in ("FAILED", "CANCELLED"):
+                        return {"success": False, "error": f"Runway task {st}"}
+
+                return {"success": False, "error": "Runway timeout (>5 min)"}
+
+            else:
+                return {"success": False, "error": f"Unknown video provider: {provider}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+class VoiceGenHandler:
+    """Voice / TTS: ElevenLabs + Google TTS + OpenAI TTS"""
+
+    GERMAN_VOICES = {
+        "elevenlabs": [
+            {"id": "pNInz6obpgDQGcFmaJgB", "name": "Adam (EN)"},
+            {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel (EN)"},
+            {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Bella (EN)"},
+        ],
+        "openai": [
+            {"id": "alloy", "name": "Alloy"},
+            {"id": "echo", "name": "Echo"},
+            {"id": "fable", "name": "Fable"},
+            {"id": "onyx", "name": "Onyx"},
+            {"id": "nova", "name": "Nova"},
+            {"id": "shimmer", "name": "Shimmer"},
+        ],
+    }
+
+    def generate_voice(self, provider: str, api_key: str, text: str,
+                       voice_id: str = "", output_dir: str = ".") -> dict:
+        import uuid, os, urllib.request
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"{uuid.uuid4()}.mp3"
+        filepath = os.path.join(output_dir, filename)
+
+        try:
+            if provider == "elevenlabs":
+                v_id = voice_id or "pNInz6obpgDQGcFmaJgB"
+                payload = json.dumps({
+                    "text": text,
+                    "model_id": "eleven_multilingual_v2",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+                }).encode()
+                req = urllib.request.Request(
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{v_id}",
+                    data=payload,
+                    headers={
+                        "xi-api-key": api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "audio/mpeg"
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    with open(filepath, "wb") as f:
+                        f.write(r.read())
+                return {"success": True, "path": filepath, "provider": "elevenlabs"}
+
+            elif provider == "openai":
+                import openai
+                v_id = voice_id or "nova"
+                client = openai.OpenAI(api_key=api_key)
+                response = client.audio.speech.create(
+                    model="tts-1", voice=v_id, input=text
+                )
+                response.stream_to_file(filepath)
+                return {"success": True, "path": filepath, "provider": "openai-tts"}
+
+            elif provider == "google":
+                # Google Cloud TTS via REST
+                payload = json.dumps({
+                    "input": {"text": text},
+                    "voice": {"languageCode": "de-DE", "name": "de-DE-Neural2-A"},
+                    "audioConfig": {"audioEncoding": "MP3"}
+                }).encode()
+                req = urllib.request.Request(
+                    f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}",
+                    data=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    data = json.loads(r.read())
+                import base64
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(data["audioContent"]))
+                return {"success": True, "path": filepath, "provider": "google-tts"}
+
+            else:
+                return {"success": False, "error": f"Unknown voice provider: {provider}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def list_voices(self, provider: str, api_key: str) -> dict:
+        import urllib.request
+        try:
+            if provider == "elevenlabs":
+                req = urllib.request.Request(
+                    "https://api.elevenlabs.io/v1/voices",
+                    headers={"xi-api-key": api_key}
+                )
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data = json.loads(r.read())
+                voices = [{"id": v["voice_id"], "name": v["name"]}
+                          for v in data.get("voices", [])]
+                return {"success": True, "voices": voices}
+            voices = self.GERMAN_VOICES.get(provider, [])
+            return {"success": True, "voices": voices}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
 # ─── Message Router ────────────────────────────────────────────────────────────
 
 class WhatsAppHandler:
@@ -1177,8 +1533,12 @@ handlers = {
     "linkedin": LinkedInHandler(),
     "twitter": TwitterHandler(),
     "telegram": TelegramHandler(),
-    "email": EmailHandler(),
-    "ai": AIHandler(),
+    "email":        EmailHandler(),
+    "ai":           AIHandler(),
+    "media_image":  ImageGenHandler(),
+    "media_avatar": AvatarGenHandler(),
+    "media_video":  VideoGenHandler(),
+    "media_voice":  VoiceGenHandler(),
 }
 
 def handle_command(command: dict) -> dict:

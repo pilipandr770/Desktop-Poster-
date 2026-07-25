@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  Send, Inbox, Users, Settings, CalendarDays,
+  Send, Inbox, Users, Settings, CalendarDays, Sparkles,
   Instagram, Facebook, MessageCircle, Linkedin,
   Twitter, Mail, Bot, Circle, Zap, LogOut,
   ChevronUp, RefreshCw, Download, ExternalLink,
@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 
 const navItems = [
   { to: "/",          icon: Send,         label: "Crossposting",   end: true },
+  { to: "/studio",    icon: Sparkles,     label: "Content Studio"           },
   { to: "/inbox",     icon: Inbox,        label: "Posteingang"              },
   { to: "/calendar",  icon: CalendarDays, label: "Kalender"                 },
   { to: "/accounts",  icon: Users,        label: "Konten"                   },

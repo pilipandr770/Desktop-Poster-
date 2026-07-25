@@ -93,6 +93,18 @@ pub fn save_setting(db: State<'_, AppDb>, key: String, value: String) -> Result<
     Ok(())
 }
 
+/// Read an arbitrary setting value
+#[tauri::command]
+pub fn get_setting_value(db: State<'_, AppDb>, key: String) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = ?1",
+        params![key],
+        |row| row.get::<_, String>(0),
+    )
+    .map_err(|_| format!("Key '{}' not found", key))
+}
+
 /// Open a URL in the system default browser.
 #[tauri::command]
 pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {

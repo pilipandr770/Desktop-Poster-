@@ -10,6 +10,7 @@ import AccountsPage from "./pages/AccountsPage";
 import SettingsPage from "./pages/SettingsPage";
 import LicensePage from "./pages/LicensePage";
 import CalendarPage from "./pages/CalendarPage";
+import ContentStudioPage from "./pages/ContentStudioPage";
 
 import "./index.css";
 
@@ -24,6 +25,7 @@ const router = createHashRouter([
       { path: "settings", element: <SettingsPage /> },
       { path: "license", element: <LicensePage /> },
       { path: "calendar", element: <CalendarPage /> },
+      { path: "studio",   element: <ContentStudioPage /> },
     ],
   },
 ]);

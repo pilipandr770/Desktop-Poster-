@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod license;
+pub mod media;
 pub mod messages;
 pub mod oauth;
 pub mod posts;

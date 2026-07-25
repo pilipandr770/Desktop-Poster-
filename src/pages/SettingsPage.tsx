@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Save, Eye, EyeOff, Code2, RefreshCw, Download, CheckCircle, Bell } from "lucide-react";
+import { Save, Eye, EyeOff, Code2, RefreshCw, Download, CheckCircle, Bell, Image, Video, Mic, User } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Settings {
@@ -40,6 +40,17 @@ export default function SettingsPage() {
   const [savingSecret, setSavingSecret] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Media API keys state
+  const [imageApiKey, setImageApiKey]   = useState("");
+  const [imageProvider, setImageProvider] = useState("dalle3");
+  const [avatarApiKey, setAvatarApiKey] = useState("");
+  const [avatarProvider, setAvatarProvider] = useState("heygen");
+  const [videoApiKey, setVideoApiKey]   = useState("");
+  const [voiceApiKey, setVoiceApiKey]   = useState("");
+  const [voiceProvider, setVoiceProvider] = useState("elevenlabs");
+  const [googleModel, setGoogleModel]   = useState("gemini-2.0-flash");
+  const [savingMedia, setSavingMedia]   = useState(false);
+
   // Updater state
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -47,8 +58,19 @@ export default function SettingsPage() {
 
   useEffect(() => {
     invoke<Settings>("get_settings").then(setSettings).catch(console.error);
-    // Auto-check for updates on page open (silent)
     checkUpdates(true);
+    // Load saved media settings
+    const loadKey = async (key: string, setter: (v: string) => void) => {
+      try { setter(await invoke<string>("get_setting_value", { key })); } catch { /* not set */ }
+    };
+    loadKey("image_api_key", setImageApiKey);
+    loadKey("image_provider", setImageProvider);
+    loadKey("avatar_api_key", setAvatarApiKey);
+    loadKey("avatar_provider", setAvatarProvider);
+    loadKey("video_api_key", setVideoApiKey);
+    loadKey("voice_api_key", setVoiceApiKey);
+    loadKey("voice_provider", setVoiceProvider);
+    loadKey("google_model", setGoogleModel);
   }, []);
 
   const checkUpdates = async (silent = false) => {
@@ -75,6 +97,30 @@ export default function SettingsPage() {
     } catch (e: any) {
       toast.error(`Installation fehlgeschlagen: ${e}`);
       setInstallingUpdate(false);
+    }
+  };
+
+  const saveMediaKeys = async () => {
+    setSavingMedia(true);
+    try {
+      const pairs: [string, string][] = [
+        ["image_api_key", imageApiKey],
+        ["image_provider", imageProvider],
+        ["avatar_api_key", avatarApiKey],
+        ["avatar_provider", avatarProvider],
+        ["video_api_key", videoApiKey],
+        ["voice_api_key", voiceApiKey],
+        ["voice_provider", voiceProvider],
+        ["google_model", googleModel],
+      ];
+      for (const [key, value] of pairs) {
+        if (value) await invoke("save_setting", { key, value });
+      }
+      toast.success("Media API-Schlüssel gespeichert");
+    } catch (e: any) {
+      toast.error(`Fehler: ${e}`);
+    } finally {
+      setSavingMedia(false);
     }
   };
 
@@ -450,6 +496,141 @@ export default function SettingsPage() {
             >
               <Save size={14} />
               {savingSecret ? "Speichert..." : "App Secret speichern"}
+            </button>
+          </div>
+        </section>
+
+        {/* Google AI model selector */}
+        {settings.ai_provider === "gemini" && (
+          <section>
+            <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--subtext0)" }}>
+              GOOGLE MODELL (Nano Banano / Flash / Pro)
+            </h2>
+            <div className="rounded-xl p-5" style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}>
+              <p className="text-xs mb-3" style={{ color: "var(--overlay0)" }}>
+                Ein API-Schlüssel — alle Google-Modelle. Gemini Nano (Nano Banano 🍌) ist das kleinste und schnellste.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "gemini-2.0-flash",     label: "⚡ Flash 2.0",    desc: "Schnell & günstig" },
+                  { id: "gemini-1.5-flash",      label: "🔥 Flash 1.5",    desc: "Stabil & bewährt" },
+                  { id: "gemini-1.5-pro",        label: "🧠 Pro 1.5",      desc: "Ausgewogen" },
+                  { id: "gemini-1.0-pro",        label: "🍌 Nano Banano",  desc: "Kleinstes Modell" },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setGoogleModel(m.id)}
+                    style={{
+                      padding: "10px 14px", borderRadius: 10, textAlign: "left",
+                      background: googleModel === m.id ? "var(--blue)22" : "var(--surface0)",
+                      border: `1px solid ${googleModel === m.id ? "var(--blue)" : "var(--surface1)"}`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{m.label}</div>
+                    <div style={{ fontSize: 11, color: "var(--overlay0)", marginTop: 2 }}>{m.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Content Studio API keys */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--subtext0)" }}>
+            <Image size={14} />
+            CONTENT STUDIO — API-SCHLÜSSEL
+          </h2>
+          <div className="rounded-xl p-5 space-y-5" style={{ background: "var(--mantle)", border: "1px solid var(--surface0)" }}>
+
+            {/* Image */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Image size={13} style={{ color: "var(--yellow)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Bildgenerierung</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1 mb-2" style={{ background: "var(--surface0)", borderRadius: 8, padding: 3 }}>
+                {[["dalle3","DALL-E 3"],["imagen3","Imagen 3"],["sdxl","Stability AI"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setImageProvider(id)}
+                    style={{ padding: "5px 8px", borderRadius: 6, fontSize: 11, fontWeight: imageProvider === id ? 600 : 400,
+                      background: imageProvider === id ? "var(--base)" : "transparent",
+                      color: imageProvider === id ? "var(--text)" : "var(--overlay1)", border: "none", cursor: "pointer" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <input type="password" placeholder={`${imageProvider === "dalle3" ? "sk-..." : imageProvider === "imagen3" ? "AIza..." : "sk-..."}`}
+                value={imageApiKey} onChange={(e) => setImageApiKey(e.target.value)} />
+              <p className="text-xs mt-1" style={{ color: "var(--overlay0)" }}>
+                {imageProvider === "dalle3" && "OpenAI API Key — gleicher Key wie für GPT-Text möglich"}
+                {imageProvider === "imagen3" && "Google AI API Key — gleicher Key wie für Gemini"}
+                {imageProvider === "sdxl" && "Stability AI API Key — stability.ai/platform"}
+              </p>
+            </div>
+
+            {/* Avatar */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <User size={13} style={{ color: "var(--pink)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Avatar-Videos (Talking Head)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 mb-2" style={{ background: "var(--surface0)", borderRadius: 8, padding: 3 }}>
+                {[["heygen","HeyGen"],["did","D-ID"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setAvatarProvider(id)}
+                    style={{ padding: "5px 8px", borderRadius: 6, fontSize: 11, fontWeight: avatarProvider === id ? 600 : 400,
+                      background: avatarProvider === id ? "var(--base)" : "transparent",
+                      color: avatarProvider === id ? "var(--text)" : "var(--overlay1)", border: "none", cursor: "pointer" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <input type="password" placeholder="API Key..."
+                value={avatarApiKey} onChange={(e) => setAvatarApiKey(e.target.value)} />
+              <p className="text-xs mt-1" style={{ color: "var(--overlay0)" }}>
+                {avatarProvider === "heygen" ? "heygen.com → API → API Key" : "d-id.com → API → Basic Auth Key"}
+              </p>
+            </div>
+
+            {/* Video */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Video size={13} style={{ color: "var(--peach)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Videogenerierung — Runway Gen-3</span>
+              </div>
+              <input type="password" placeholder="key_..."
+                value={videoApiKey} onChange={(e) => setVideoApiKey(e.target.value)} />
+              <p className="text-xs mt-1" style={{ color: "var(--overlay0)" }}>runwayml.com → Account → API Keys</p>
+            </div>
+
+            {/* Voice */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Mic size={13} style={{ color: "var(--mauve)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Sprachsynthese (TTS)</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1 mb-2" style={{ background: "var(--surface0)", borderRadius: 8, padding: 3 }}>
+                {[["elevenlabs","ElevenLabs"],["openai","OpenAI TTS"],["google","Google TTS"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setVoiceProvider(id)}
+                    style={{ padding: "5px 8px", borderRadius: 6, fontSize: 11, fontWeight: voiceProvider === id ? 600 : 400,
+                      background: voiceProvider === id ? "var(--base)" : "transparent",
+                      color: voiceProvider === id ? "var(--text)" : "var(--overlay1)", border: "none", cursor: "pointer" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <input type="password" placeholder={voiceProvider === "elevenlabs" ? "elevenlabs API Key..." : voiceProvider === "openai" ? "sk-..." : "AIza..."}
+                value={voiceApiKey} onChange={(e) => setVoiceApiKey(e.target.value)} />
+            </div>
+
+            <button
+              onClick={saveMediaKeys}
+              disabled={savingMedia}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              style={{ background: "var(--blue)", color: "var(--crust)" }}
+            >
+              <Save size={14} />
+              {savingMedia ? "Speichert..." : "Media API-Schlüssel speichern"}
             </button>
           </div>
         </section>
