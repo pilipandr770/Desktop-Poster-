@@ -19,10 +19,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 2dc518ee9fafb8e6accdc53444c838bd
           workingDirectory: cloudflare-worker
-          secrets: |
-            STRIPE_SECRET_KEY
-            STRIPE_WEBHOOK_SECRET
-        env:
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          RESEND_API_KEY: "placeholder"
