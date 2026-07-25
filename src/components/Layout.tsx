@@ -40,7 +40,7 @@ const platformColors: Record<string, string> = {
   email:     "#EA4335",
 };
 
-// в”Ђв”Ђ Account Panel в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// в"Ђв"Ђ Account Panel в"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђ
 
 type UpdateStatus = "idle" | "checking" | "available" | "up_to_date" | "error";
 
@@ -134,7 +134,7 @@ function AccountPanel() {
 
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
-      {/* в”Ђв”Ђ Floating Panel в”Ђв”Ђ */}
+      {/* в"Ђв"Ђ Floating Panel в"Ђв"Ђ */}
       {open && (
         <div style={{
           position: "absolute",
@@ -286,7 +286,7 @@ function AccountPanel() {
         </div>
       )}
 
-      {/* в”Ђв”Ђ Chip trigger в”Ђв”Ђ */}
+      {/* в"Ђв"Ђ Chip trigger в"Ђв"Ђ */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -332,7 +332,7 @@ function AccountPanel() {
   );
 }
 
-// в”Ђв”Ђ Layout в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// в"Ђв"Ђ Layout в"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђв"Ђ
 
 export default function Layout() {
   const accounts = useAccountsStore((s) => s.accounts);
@@ -376,7 +376,7 @@ export default function Layout() {
 
   return (
     <div style={{ display: "flex", height: "100%", width: "100%", background: "var(--crust)" }}>
-      {/* в”Ђв”Ђ Sidebar в”Ђв”Ђ */}
+      {/* в"Ђв"Ђ Sidebar в"Ђв"Ђ */}
       <aside style={{
         display: "flex",
         flexDirection: "column",
@@ -485,66 +485,65 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* в”Ђв”Ђ Main в”Ђв”Ђ */}
+      {/* в"Ђв"Ђ Main в"Ђв"Ђ */}
       <main style={{ flex: 1, overflow: "auto", background: "var(--base)", height: "100%", display: "flex", flexDirection: "column" }}>
         <Outlet />
       </main>
 
-      {/* ── Update banner ── */}
+      {/* Update banner */}
       {updateBanner && (
         <div style={{
-          position: “fixed”, bottom: 20, left: 232, zIndex: 300,
-          background: “var(--mantle)”, border: “1.5px solid var(--surface1)”,
-          borderRadius: 14, padding: “10px 14px”,
-          display: “flex”, alignItems: “center”, gap: 12,
-          boxShadow: “0 8px 32px rgba(0,0,0,0.45)”,
+          position: "fixed", bottom: 20, left: 232, zIndex: 300,
+          background: "var(--mantle)", border: "1.5px solid var(--surface1)",
+          borderRadius: 14, padding: "10px 14px",
+          display: "flex", alignItems: "center", gap: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
           minWidth: 260, maxWidth: 340,
-          animation: “slideUp .25s ease”,
+          animation: "slideUp .25s ease",
         }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: “linear-gradient(135deg, var(--blue), var(--mauve))”,
-            display: “flex”, alignItems: “center”, justifyContent: “center”,
+            background: "linear-gradient(135deg, var(--blue), var(--mauve))",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <Download size={16} color=”#fff” />
+            <Download size={16} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: “var(--text)”, whiteSpace: “nowrap”, overflow: “hidden”, textOverflow: “ellipsis” }}>
-              {installing ? “Wird installiert…” : `Update v${updateBanner.version} verfügbar`}
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {installing ? "Wird installiert..." : "Update v" + updateBanner.version + " verfugbar"}
             </div>
-            <div style={{ fontSize: 11, color: “var(--overlay1)”, marginTop: 1 }}>
-              {installing ? “Bitte warten…” : “Neu starten, um zu aktualisieren”}
+            <div style={{ fontSize: 11, color: "var(--overlay1)", marginTop: 1 }}>
+              {installing ? "Bitte warten..." : "Neu starten, um zu aktualisieren"}
             </div>
           </div>
           {!installing && (
             <button
               onClick={handleInstallUpdate}
               style={{
-                background: “var(--blue)”, border: “none”, borderRadius: 8,
-                padding: “6px 12px”, cursor: “pointer”, flexShrink: 0,
-                display: “flex”, alignItems: “center”, gap: 5,
-                fontSize: 12, fontWeight: 600, color: “#fff”,
+                background: "var(--blue)", border: "none", borderRadius: 8,
+                padding: "6px 12px", cursor: "pointer", flexShrink: 0,
+                display: "flex", alignItems: "center", gap: 5,
+                fontSize: 12, fontWeight: 600, color: "#fff",
               }}
             >
-              Jetzt →
+              Jetzt
             </button>
           )}
           {!installing && (
             <button
               onClick={() => setUpdateBanner(null)}
               style={{
-                background: “none”, border: “none”, cursor: “pointer”,
-                color: “var(--overlay0)”, padding: 4, flexShrink: 0,
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--overlay0)", padding: 4, flexShrink: 0,
                 fontSize: 16, lineHeight: 1,
               }}
-              title=”Schließen”
-            >✕</button>
+              title="Schliessen"
+            >x</button>
           )}
         </div>
       )}
-      <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
 
-      {/* в”Ђв”Ђ Welcome overlay в”Ђв”Ђ */}
+      {/* Welcome overlay */}
       {showWelcome && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 100,
