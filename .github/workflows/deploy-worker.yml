@@ -22,8 +22,7 @@ jobs:
           secrets: |
             STRIPE_SECRET_KEY
             STRIPE_WEBHOOK_SECRET
-            RESEND_API_KEY
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_API_KEY: "placeholder"
