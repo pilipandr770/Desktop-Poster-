@@ -12,8 +12,8 @@ id = "PASTE_KV_ID_HERE"
 # ── Plain variables (not secret) ─────────────────────────────────────────────
 [vars]
 # Stripe price IDs — copy from Stripe Dashboard → Products → price_xxx
-STRIPE_PRICE_SOLO = "price_FILL_IN"
-STRIPE_PRICE_PRO  = "price_FILL_IN"
+STRIPE_PRICE_SOLO = "price_1Tx3zMP22GPrmrodtO54nOv6"
+STRIPE_PRICE_PRO  = "price_1Tx41AP22GPrmrodu2nUht7o"
 
 # URLs shown after checkout
 SUCCESS_URL = "https://pilipandr770.github.io/Desktop-Poster-/#success"
