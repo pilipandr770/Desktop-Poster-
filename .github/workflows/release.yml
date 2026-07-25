@@ -181,7 +181,9 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $nsisName = "${{ steps.find.outputs.nsis_name }}"
-          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$nsisName"
+          # NSIS replaces spaces with dots in the filename — normalise here too
+          $nsisNameNorm = $nsisName -replace ' ', '.'
+          $newUrl = "https://github.com/pilipandr770/Desktop-Poster-/releases/download/$tag/$nsisNameNorm"
 
           # Update landing page download URL
           $html = Get-Content "docs/index.html" -Raw -Encoding UTF8
