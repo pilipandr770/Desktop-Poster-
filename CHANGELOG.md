@@ -4,6 +4,26 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.8.0-beta] — 2026-07-25
+
+### Added
+- **Content Studio** — neuer 6-Schritte-Wizard `/studio`: Text → Bild → Avatar → Video → Stimme → Publizieren
+- **Bildgenerierung** — DALL-E 3, Google Imagen 3 (via Gemini API), Stability AI SDXL; Ausgabeformat wählbar (1:1 / 9:16 / 16:9 / 4:5)
+- **Avatar-Videos (Talking Head)** — HeyGen + D-ID: Foto + Text → sprechendes Avatar-Video (MP4, async polling)
+- **Videogenerierung** — Runway Gen-3: Bild + Prompt → kurzes Video (5–10s, async polling)
+- **Sprachsynthese (TTS)** — ElevenLabs (multilingual v2), OpenAI TTS, Google Cloud TTS → MP3
+- **Google Nano Banano 🍌** — Modell-Umschalter in Einstellungen: Nano / Flash 2.0 / Flash 1.5 / Pro; ein API-Key für alle Modelle
+- **Medien-Bibliothek** — alle generierten Bilder/Videos/Audios werden lokal in `AppData/CrossPost/media/` gespeichert
+- **Settings — Media API-Schlüssel** — neue Sektionen für Image/Avatar/Video/Voice Provider + Keys
+- **`get_setting_value` Rust-Kommando** — beliebige Settings-Werte aus DB lesen
+
+### Changed
+- Sidebar: "Content Studio" als zweiter Menüpunkt (Sparkles-Icon)
+- Content Studio übergibt generiertes Bild automatisch als Startframe für Runway-Video
+- Avatar/Voice-Text wird automatisch aus dem generierten Plattform-Text vorausgefüllt
+
+---
+
 ## [0.7.0-beta] — 2026-07-24
 
 ### Added
