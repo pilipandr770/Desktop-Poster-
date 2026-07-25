@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  Send, Inbox, Users, Settings,
+  Send, Inbox, Users, Settings, CalendarDays,
   Instagram, Facebook, MessageCircle, Linkedin,
   Twitter, Mail, Bot, Circle, Zap, LogOut,
   ChevronUp, RefreshCw, Download, ExternalLink,
@@ -12,10 +12,11 @@ import { useEffect, useState, useRef } from "react";
 import toast from "react-hot-toast";
 
 const navItems = [
-  { to: "/",         icon: Send,    label: "Crossposting",  end: true },
-  { to: "/inbox",    icon: Inbox,   label: "Posteingang"             },
-  { to: "/accounts", icon: Users,   label: "Konten"                  },
-  { to: "/settings", icon: Settings,label: "Einstellungen"           },
+  { to: "/",          icon: Send,         label: "Crossposting",   end: true },
+  { to: "/inbox",     icon: Inbox,        label: "Posteingang"              },
+  { to: "/calendar",  icon: CalendarDays, label: "Kalender"                 },
+  { to: "/accounts",  icon: Users,        label: "Konten"                   },
+  { to: "/settings",  icon: Settings,     label: "Einstellungen"            },
 ];
 
 const platformIcons: Record<string, React.FC<any>> = {

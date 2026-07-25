@@ -969,18 +969,33 @@ class EmailHandler:
 class AIHandler:
     """AI генерация контента — Anthropic, OpenAI, Gemini"""
     
-    def generate_content(self, provider: str, api_key: str, prompt: str, platform: str) -> dict:
+    def generate_content(self, provider: str, api_key: str, prompt: str, platform: str,
+                         tone: str = "professionell", hashtags: bool = True) -> dict:
         platform_hints = {
-            "instagram": "Instagram Post: ansprechend, mit Emojis, max 2200 Zeichen, mit relevanten Hashtags",
-            "facebook": "Facebook Post: informativ, mittellang, mit Handlungsaufforderung",
-            "linkedin": "LinkedIn Post: professionell, sachlich, Mehrwert für Business-Netzwerk",
-            "twitter": "Twitter/X Post: prägnant, max 280 Zeichen, ein Hashtag",
-            "telegram": "Telegram Nachricht: direkt und klar",
-            "email": "E-Mail: professionell, klare Betreffzeile, strukturierter Text"
+            "instagram": f"Instagram Post: ansprechend, mit Emojis, max 2200 Zeichen{'mit relevanten Hashtags am Ende' if hashtags else ', ohne Hashtags'}",
+            "facebook":  "Facebook Post: informativ, mittellang, mit Handlungsaufforderung",
+            "linkedin":  "LinkedIn Post: professionell, sachlich, Mehrwert für Business-Netzwerk",
+            "twitter":   f"Twitter/X Post: prägnant, max 280 Zeichen{'mit einem Hashtag' if hashtags else ', ohne Hashtags'}",
+            "telegram":  "Telegram Nachricht: direkt und klar",
+            "email":     "E-Mail: professionell, klare Betreffzeile, strukturierter Text",
         }
-        
-        hint = platform_hints.get(platform, "")
-        full_prompt = f"Erstelle einen {hint} über folgendes Thema: {prompt}\n\nNur den Post-Text, keine Erklärungen."
+        tone_hints = {
+            "professionell": "Schreibe in einem professionellen, seriösen Ton.",
+            "casual":        "Schreibe in einem lockeren, freundlichen Alltagston.",
+            "witzig":        "Schreibe humorvoll und mit einem Augenzwinkern.",
+            "inspirierend":  "Schreibe motivierend und inspirierend.",
+        }
+        hint      = platform_hints.get(platform, "Social-Media-Post")
+        tone_hint = tone_hints.get(tone, tone_hints["professionell"])
+        hashtag_instruction = (
+            "\nFüge am Ende passende Hashtags hinzu." if hashtags and platform not in ("email", "telegram")
+            else "\nKeine Hashtags verwenden."
+        )
+        full_prompt = (
+            f"{tone_hint}\n"
+            f"Erstelle einen {hint} über folgendes Thema:\n{prompt}"
+            f"{hashtag_instruction}\n\nNur den Post-Text ausgeben, keine Erklärungen."
+        )
         
         try:
             if provider == "anthropic":

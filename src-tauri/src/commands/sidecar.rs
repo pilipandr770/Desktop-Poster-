@@ -195,6 +195,8 @@ pub async fn generate_ai_content(
     db: State<'_, AppDb>,
     platform: String,
     prompt: String,
+    tone: Option<String>,
+    hashtags: Option<bool>,
 ) -> Result<Value, String> {
     // Read AI config from DB
     let (provider, use_own, own_key) = {
@@ -248,7 +250,9 @@ pub async fn generate_ai_content(
             "provider": provider,
             "api_key": api_key,
             "prompt": prompt,
-            "platform": platform
+            "platform": platform,
+            "tone": tone.unwrap_or_else(|| "professionell".to_string()),
+            "hashtags": hashtags.unwrap_or(true)
         }
     });
 

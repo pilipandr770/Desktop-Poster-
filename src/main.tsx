@@ -9,6 +9,7 @@ import InboxPage from "./pages/InboxPage";
 import AccountsPage from "./pages/AccountsPage";
 import SettingsPage from "./pages/SettingsPage";
 import LicensePage from "./pages/LicensePage";
+import CalendarPage from "./pages/CalendarPage";
 
 import "./index.css";
 
@@ -22,6 +23,7 @@ const router = createHashRouter([
       { path: "accounts", element: <AccountsPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "license", element: <LicensePage /> },
+      { path: "calendar", element: <CalendarPage /> },
     ],
   },
 ]);
