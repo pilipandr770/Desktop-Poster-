@@ -5,7 +5,7 @@ on:
     branches: [master]
     paths:
       - 'cloudflare-worker/**'
-  workflow_dispatch:   # allow manual trigger
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -19,3 +19,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 2dc518ee9fafb8e6accdc53444c838bd
           workingDirectory: cloudflare-worker
+          wranglerVersion: "4"
