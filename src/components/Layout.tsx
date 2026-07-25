@@ -461,7 +461,7 @@ export default function Layout() {
       </aside>
 
       {/* в”Ђв”Ђ Main в”Ђв”Ђ */}
-      <main style={{ flex: 1, overflow: "hidden", background: "var(--base)", height: "100%", display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, overflow: "auto", background: "var(--base)", height: "100%", display: "flex", flexDirection: "column" }}>
         <Outlet />
       </main>
 
