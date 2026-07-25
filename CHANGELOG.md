@@ -4,6 +4,15 @@ All notable changes to CrossPost Desktop are documented here.
 
 ---
 
+## [0.9.0-beta] — 2026-07-25
+
+### Added
+- **macOS Build** — zweiter CI-Runner (`macos-latest`, Apple Silicon arm64); erzeugt `.dmg`-Installer für macOS 13+
+- **`tauri.macos.conf.json`** — plattformspezifische Bundle-Konfiguration für macOS (DMG + App-Target, Python-Sidecar ohne `.exe`)
+- **`latest.json` macOS-Eintrag** — Auto-Updater enthält jetzt auch `darwin-aarch64`-Plattform nach macOS-Build
+
+---
+
 ## [0.8.0-beta] — 2026-07-25
 
 ### Added

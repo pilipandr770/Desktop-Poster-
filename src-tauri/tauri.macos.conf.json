@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "targets": ["dmg", "app"],
+    "resources": {
+      "../python-sidecar/dist/sidecar": "sidecar"
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": null,
+      "signingIdentity": null,
+      "providerShortName": null
+    }
+  }
+}

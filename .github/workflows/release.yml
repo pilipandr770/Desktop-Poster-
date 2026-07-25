@@ -196,3 +196,134 @@ jobs:
             git commit -m "chore: release $tag — update landing + latest.json"
             git push origin HEAD:master
           }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest        # Apple Silicon (arm64) runner
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Rust stable (aarch64-apple-darwin)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ── Build Python sidecar (Unix binary, no .exe) ─────────────────────────
+      - name: Install Python dependencies
+        working-directory: python-sidecar
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Inject API credentials into sidecar
+        working-directory: python-sidecar
+        run: |
+          ID="${{ secrets.TELEGRAM_API_ID }}"
+          HASH="${{ secrets.TELEGRAM_API_HASH }}"
+          [ -z "$ID" ] && ID="0"
+          [ -z "$HASH" ] && HASH=""
+          printf "TELEGRAM_API_ID = %s\nTELEGRAM_API_HASH = '%s'\n" "$ID" "$HASH" > _constants.py
+          echo "Created _constants.py"
+
+      - name: Build Python sidecar with PyInstaller
+        working-directory: python-sidecar
+        run: pyinstaller sidecar.spec --noconfirm --log-level WARN
+
+      # ── Build Node WhatsApp sidecar ──────────────────────────────────────────
+      - name: Install WhatsApp sidecar dependencies
+        working-directory: whatsapp-sidecar
+        run: npm install
+
+      # ── Build Tauri app (macOS DMG) ──────────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri (DMG + Updater)
+        run: npm run tauri build -- --config src-tauri/tauri.macos.conf.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+
+      # ── Collect macOS artifacts ──────────────────────────────────────────────
+      - name: Find macOS installers
+        id: find_mac
+        run: |
+          DMG=$(find src-tauri/target/release/bundle/dmg -name "*.dmg" | head -1)
+          TAR=$(find src-tauri/target/release/bundle/macos -name "*.app.tar.gz" | head -1)
+          SIG=$(find src-tauri/target/release/bundle/macos -name "*.app.tar.gz.sig" | head -1)
+          echo "dmg=$DMG" >> $GITHUB_OUTPUT
+          echo "tar=$TAR" >> $GITHUB_OUTPUT
+          echo "sig=$SIG" >> $GITHUB_OUTPUT
+          echo "dmg_name=$(basename $DMG)" >> $GITHUB_OUTPUT
+
+      # ── Upload to same GitHub Release ────────────────────────────────────────
+      - name: Upload macOS assets to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: false
+          update_existing: true
+          make_latest: false
+          files: |
+            ${{ steps.find_mac.outputs.dmg }}
+            ${{ steps.find_mac.outputs.tar }}
+            ${{ steps.find_mac.outputs.sig }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Update latest.json with macOS entry ─────────────────────────────────
+      - name: Update latest.json with macOS platform
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          TAR_NAME="$(basename ${{ steps.find_mac.outputs.tar }})"
+          SIG_FILE="${{ steps.find_mac.outputs.sig }}"
+          SIGNATURE=""
+          [ -f "$SIG_FILE" ] && SIGNATURE=$(cat "$SIG_FILE")
+          URL="https://github.com/pilipandr770/Desktop-Poster-/releases/download/$TAG/$TAR_NAME"
+
+          # Merge darwin entry into existing latest.json (if it exists)
+          LATEST="docs/updates/latest.json"
+          if [ -f "$LATEST" ]; then
+            python3 - <<PYEOF
+          import json, sys
+          with open("$LATEST", "r") as f:
+              data = json.load(f)
+          data.setdefault("platforms", {})["darwin-aarch64"] = {
+              "signature": """$SIGNATURE""".strip(),
+              "url": "$URL"
+          }
+          with open("$LATEST", "w") as f:
+              json.dump(data, f, indent=2)
+          print("Updated latest.json with darwin-aarch64")
+          PYEOF
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git diff --staged --quiet || git commit -m "chore: release $TAG — add macOS to latest.json" && git push origin HEAD:master || true
