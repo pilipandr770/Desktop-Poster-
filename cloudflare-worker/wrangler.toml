@@ -7,7 +7,7 @@ compatibility_date = "2024-01-01"
 # Then paste the returned id below.
 [[kv_namespaces]]
 binding = "LICENSE_KV"
-id = "PASTE_KV_ID_HERE"
+id = "2dd2eecd4cc641bcbc8d7947bb26db1c"
 
 # ── Plain variables (not secret) ─────────────────────────────────────────────
 [vars]
