@@ -2,17 +2,32 @@ name = "crosspost-license"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# Custom domain (add in Cloudflare dashboard after deploy):
-# license.crosspost-desktop.de → Workers → crosspost-license
+# ── KV namespace ─────────────────────────────────────────────────────────────
+# Create with: npx wrangler kv namespace create LICENSE_KV
+# Then paste the returned id below.
+[[kv_namespaces]]
+binding = "LICENSE_KV"
+id = "PASTE_KV_ID_HERE"
 
-# Environment variables — set LEMON_API_KEY as a Secret:
-#   npx wrangler secret put LEMON_API_KEY
-# Then set LEMON_STORE_ID as a plain variable below or as secret.
-
+# ── Plain variables (not secret) ─────────────────────────────────────────────
 [vars]
-# LEMON_STORE_ID = "12345"   # fill in after creating the store
+# Stripe price IDs — copy from Stripe Dashboard → Products → price_xxx
+STRIPE_PRICE_SOLO = "price_FILL_IN"
+STRIPE_PRICE_PRO  = "price_FILL_IN"
 
-[[routes]]
-# Uncomment after adding crosspost-desktop.de to Cloudflare:
-# pattern = "license.crosspost-desktop.de/*"
-# zone_name = "crosspost-desktop.de"
+# URLs shown after checkout
+SUCCESS_URL = "https://pilipandr770.github.io/Desktop-Poster-/#success"
+CANCEL_URL  = "https://pilipandr770.github.io/Desktop-Poster-/#pricing"
+
+# Sender address (must be verified in Resend)
+FROM_EMAIL = "noreply@andrii-it.de"
+
+# ── Secrets (set via wrangler secret put) ────────────────────────────────────
+# npx wrangler secret put STRIPE_SECRET_KEY       ← sk_live_...
+# npx wrangler secret put STRIPE_WEBHOOK_SECRET   ← whsec_...
+# npx wrangler secret put RESEND_API_KEY          ← re_...
+
+# ── Custom domain (add in Cloudflare dashboard after first deploy) ────────────
+# Workers → crosspost-license → Settings → Domains & Routes
+# → Add Custom Domain: license.crosspost-desktop.de
+# (or use the default: crosspost-license.<your-subdomain>.workers.dev)

@@ -1,77 +1,100 @@
-# CrossPost License Worker
+# CrossPost License Worker (Stripe)
 
-Cloudflare Worker — validates LemonSqueezy license keys for CrossPost Desktop.
+Cloudflare Worker — обрабатывает оплату через Stripe, выдаёт license keys по email,
+хранит их в Cloudflare KV, валидирует при каждом запуске приложения.
 
-## Endpoints
+## Поток
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/verify` | Validate key (called by the app on activation) |
-| POST | `/activate` | Activate + register instance |
-| POST | `/deactivate` | Deactivate instance when app is removed |
-| POST | `/webhook` | LemonSqueezy subscription lifecycle events |
+```
+Лендинг → GET /checkout?plan=solo
+  → Stripe Checkout (hosted, твой домен)
+  → checkout.session.completed webhook
+  → Worker генерирует SOLO-XXXX-XXXX-XXXX-XXXX
+  → KV: license:{key} = {plan, email, status, stripe_ids}
+  → Resend: письмо с ключом на email покупателя
+  → Приложение: POST /verify → KV lookup → {valid, plan}
+```
 
-## Setup (one-time)
+## Установка (один раз)
 
-### 1. LemonSqueezy Store
+### 1. Stripe — создать продукты
 
-1. Go to https://app.lemonsqueezy.com → **Create a store**
-   - Store slug: `crosspost-desktop`
-2. Create **Products**:
+В [Stripe Dashboard](https://dashboard.stripe.com/products):
 
-   | Product | Type | Price | Variant Name |
-   |---------|------|-------|--------------|
-   | Solo    | Subscription (monthly) | €29 | `Solo` |
-   | Pro     | Subscription (monthly) | €79 | `Pro` |
-   | Agency  | Contact us | €199 | `Agency` |
+| Название | Тип | Цена | Billing |
+|----------|-----|------|---------|
+| Solo | Subscription | €29 | monthly |
+| Pro  | Subscription | €79 | monthly |
 
-3. For each product: **Licensing** tab → enable **License keys** → set activation limit = 3 (Solo) / 5 (Pro) / 20 (Agency)
+После создания скопируй **Price ID** каждого продукта (`price_xxx`) → вставь в `wrangler.toml`.
 
-4. Go to **Settings → API** → create an API key → copy it
+### 2. Resend — верифицировать домен
 
-5. Note your **Store ID** (visible in the dashboard URL: `app.lemonsqueezy.com/stores/12345/`)
+1. Зайди на [resend.com](https://resend.com) → создай аккаунт (бесплатно до 3000 писем/мес)
+2. Domains → Add Domain: `andrii-it.de` → добавь DNS-записи
+3. API Keys → Create API Key → скопируй
 
-### 2. Deploy the Worker
+### 3. Deploy
 
 ```bash
 cd cloudflare-worker
+
+# Установи Wrangler
 npm install -g wrangler
 wrangler login
 
-# Deploy
+# Создай KV namespace — скопируй id в wrangler.toml
+wrangler kv namespace create LICENSE_KV
+
+# Деплой
 wrangler deploy
 
-# Set API key as secret (never in wrangler.toml)
-wrangler secret put LEMON_API_KEY
-# paste your LemonSqueezy API key when prompted
+# Secrets
+wrangler secret put STRIPE_SECRET_KEY       # sk_live_...
+wrangler secret put STRIPE_WEBHOOK_SECRET   # пока whsec_test, потом заменишь
+wrangler secret put RESEND_API_KEY          # re_...
 ```
 
-### 3. Custom domain
+### 4. Stripe Webhook
 
-In Cloudflare dashboard:
-1. Add `crosspost-desktop.de` as a zone (or use existing)
-2. Workers → crosspost-license → Triggers → Add Custom Domain: `license.crosspost-desktop.de`
+В Stripe Dashboard → Developers → Webhooks → Add endpoint:
+- URL: `https://crosspost-license.<subdomain>.workers.dev/webhook`  
+  (или `https://license.crosspost-desktop.de/webhook` после custom domain)
+- Events:
+  - `checkout.session.completed`
+  - `customer.subscription.deleted`
+  - `customer.subscription.paused`
+- Скопируй **Signing secret** (`whsec_...`) → `wrangler secret put STRIPE_WEBHOOK_SECRET`
 
-### 4. Webhook (optional — for subscription cancellations)
+### 5. Custom domain (опционально)
 
-In LemonSqueezy → Settings → Webhooks → Add:
-- URL: `https://license.crosspost-desktop.de/webhook`
-- Events: `subscription_cancelled`, `subscription_expired`, `license_key_updated`
+В Cloudflare Dashboard → Workers → crosspost-license → Settings → Domains & Routes
+→ Add Custom Domain: `license.crosspost-desktop.de`
 
-## Test
+### 6. Обнови лендинг
+
+Кнопки "Solo kaufen" и "Pro kaufen" уже ведут на Worker:
+- `https://crosspost-license.<subdomain>.workers.dev/checkout?plan=solo`
+
+Замени на реальный URL в `docs/index.html` (или custom domain).
+
+## Тест
 
 ```bash
-curl -X POST https://license.crosspost-desktop.de/verify \
+# Создать Checkout сессию
+curl "https://crosspost-license.<subdomain>.workers.dev/checkout?plan=solo"
+# → редиректит на stripe.com/checkout/...
+
+# Проверить ключ (после тестовой оплаты)
+curl -X POST https://crosspost-license.<subdomain>.workers.dev/verify \
   -H "Content-Type: application/json" \
-  -d '{"token":"YOUR-LICENSE-KEY"}'
+  -d '{"token":"SOLO-ABCD-EFGH-IJKL-MNOP"}'
+# → {"valid":true,"plan":"solo","valid_until":"...","message":"Lizenz aktiv — Plan: SOLO"}
 ```
 
-Expected response:
-```json
-{
-  "valid": true,
-  "plan": "solo",
-  "valid_until": "2026-08-26T...",
-  "message": "Lizenz aktiv — Plan: SOLO"
-}
-```
+## KV структура
+
+| Key | Value |
+|-----|-------|
+| `license:{KEY}` | `{plan, email, stripe_customer_id, stripe_subscription_id, created_at, status}` |
+| `customer:{stripe_customer_id}` | `{KEY}` (для отмены подписки) |
