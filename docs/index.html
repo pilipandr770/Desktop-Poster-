@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CrossPost Desktop вЂ” Social Media Manager fГјr Windows</title>
-  <meta name="description" content="Verwalten Sie alle Social-Media-KanГ¤le von einem Ort aus. Instagram, LinkedIn, Telegram, Twitter und mehr вЂ” lokal auf Ihrem PC, DSGVO-konform." />
+  <title>CrossPost Desktop — Social Media Manager für Windows</title>
+  <meta name="description" content="Verwalten Sie alle Social-Media-Kanäle von einem Ort aus. Instagram, LinkedIn, Telegram, Twitter und mehr — lokal auf Ihrem PC, DSGVO-konform." />
   <meta property="og:title" content="CrossPost Desktop" />
-  <meta property="og:description" content="Unified Inbox + AI Crossposting fГјr Windows. DSGVO-konform, keine Cloud." />
+  <meta property="og:description" content="Unified Inbox + AI Crossposting für Windows. DSGVO-konform, keine Cloud." />
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -30,7 +30,7 @@
     html { scroll-behavior: smooth; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
 
-    /* в”Ђв”Ђ NAV в”Ђв”Ђ */
+    /* ── NAV ── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
@@ -48,7 +48,7 @@
       border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: opacity .2s; }
     .nav-cta:hover { opacity: .85; }
 
-    /* в”Ђв”Ђ HERO в”Ђв”Ђ */
+    /* ── HERO ── */
     .hero {
       min-height: 100vh; display: flex; flex-direction: column; align-items: center;
       justify-content: center; text-align: center; padding: 100px 20px 60px;
@@ -91,7 +91,7 @@
     .hero-meta span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
     .hero-meta svg { color: var(--green); }
 
-    /* в”Ђв”Ђ PLATFORMS в”Ђв”Ђ */
+    /* ── PLATFORMS ── */
     .platforms { padding: 48px 20px; text-align: center; border-bottom: 1px solid var(--border); }
     .platforms p { font-size: 13px; color: var(--muted); margin-bottom: 20px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
     .platform-icons { display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap; }
@@ -104,14 +104,14 @@
     .platform-icon:hover .circle { transform: scale(1.1); }
     .platform-icon span { font-size: 11px; color: var(--muted); font-weight: 500; }
 
-    /* в”Ђв”Ђ SECTION WRAPPER в”Ђв”Ђ */
+    /* ── SECTION WRAPPER ── */
     section { padding: 100px 20px; max-width: 1100px; margin: 0 auto; }
     .section-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
       color: #818cf8; margin-bottom: 12px; }
     h2 { font-size: clamp(1.8rem, 3vw, 2.8rem); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
     .section-sub { font-size: 1.05rem; color: var(--muted); max-width: 540px; line-height: 1.7; margin-bottom: 56px; }
 
-    /* в”Ђв”Ђ FEATURE GRID в”Ђв”Ђ */
+    /* ── FEATURE GRID ── */
     .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
     .feature-card {
       background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
@@ -123,7 +123,7 @@
     .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
     .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
-    /* в”Ђв”Ђ INBOX MOCKUP в”Ђв”Ђ */
+    /* ── INBOX MOCKUP ── */
     .inbox-section { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
     @media(max-width:768px) { .inbox-section { grid-template-columns: 1fr; } }
 
@@ -147,7 +147,7 @@
     .msg-text { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .msg-badge { font-size: 10px; padding: 2px 6px; border-radius: 100px; font-weight: 600; }
 
-    /* в”Ђв”Ђ AI SECTION в”Ђв”Ђ */
+    /* ── AI SECTION ── */
     .ai-section { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
     @media(max-width:768px) { .ai-section { grid-template-columns: 1fr; } }
 
@@ -160,7 +160,7 @@
     .platform-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
       padding: 3px 10px; border-radius: 100px; margin-right: 6px; margin-bottom: 10px; }
 
-    /* в”Ђв”Ђ PRIVACY в”Ђв”Ђ */
+    /* ── PRIVACY ── */
     .privacy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
     .privacy-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 24px; text-align: center; }
@@ -168,7 +168,7 @@
     .privacy-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
     .privacy-card p { font-size: 13px; color: var(--muted); }
 
-    /* в”Ђв”Ђ REQUIREMENTS в”Ђв”Ђ */
+    /* ── REQUIREMENTS ── */
     .req-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .req-item { display: flex; align-items: flex-start; gap: 12px; padding: 16px;
       background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; }
@@ -176,7 +176,7 @@
     .req-item h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
     .req-item p { font-size: 12px; color: var(--muted); }
 
-    /* в”Ђв”Ђ CTA BOTTOM в”Ђв”Ђ */
+    /* ── CTA BOTTOM ── */
     .cta-section {
       text-align: center; padding: 100px 20px;
       background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(99,102,241,.15) 0%, transparent 70%);
@@ -185,7 +185,7 @@
     .cta-section h2 { margin-bottom: 16px; }
     .cta-section p { color: var(--muted); margin-bottom: 40px; font-size: 1.05rem; }
 
-    /* в”Ђв”Ђ FOOTER в”Ђв”Ђ */
+    /* ── FOOTER ── */
     footer {
       border-top: 1px solid var(--border);
       padding: 32px 40px;
@@ -195,7 +195,7 @@
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--text); }
 
-    /* в”Ђв”Ђ RESPONSIVE в”Ђв”Ђ */
+    /* ── RESPONSIVE ── */
     @media(max-width:600px) {
       nav { padding: 0 20px; }
       .nav-links { display: none; }
@@ -226,30 +226,30 @@
   </div>
   <a href="https://github.com/pilipandr770/Desktop-Poster-/releases/download/v0.9.2-beta/CrossPost.Desktop_0.9.2_x64-setup.exe" class="nav-cta btn-download">
 
-    в†“ Download .exe
+    ↓ Download .exe
   </a>
 </nav>
 
 <!-- HERO -->
 <div class="hero">
   <div class="hero-badge">
-    вњ¦ Jetzt verfГјgbar В· v0.7.0 Beta В· Windows 10/11
+    ✦ Jetzt verfügbar · v0.7.0 Beta · Windows 10/11
   </div>
 
   <h1>
-    Alle Social-Media-KanГ¤le.<br/>
+    Alle Social-Media-Kanäle.<br/>
     <em>Ein Fenster. Lokal.</em>
   </h1>
 
   <p class="hero-sub">
-    CrossPost Desktop vereint Instagram, LinkedIn, Telegram, Twitter, WhatsApp und E-Mail in einem Postfach вЂ” mit KI-gestГјtztem Crossposting, ohne Cloud, ohne Abonnement-Abo bei Drittanbietern.
+    CrossPost Desktop vereint Instagram, LinkedIn, Telegram, Twitter, WhatsApp und E-Mail in einem Postfach — mit KI-gestütztem Crossposting, ohne Cloud, ohne Abonnement-Abo bei Drittanbietern.
   </p>
 
   <div class="hero-btns">
     <a href="https://github.com/pilipandr770/Desktop-Poster-/releases/download/v0.9.2-beta/CrossPost.Desktop_0.9.2_x64-setup.exe" class="btn-primary btn-download">
 
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 16l-6-6h4V4h4v6h4l-6 6z"/><path d="M4 20h16" stroke-linecap="round"/></svg>
-      в¬‡ Jetzt herunterladen вЂ” Windows .exe
+      ⬇ Jetzt herunterladen — Windows .exe
     </a>
     <a href="https://github.com/pilipandr770/Desktop-Poster-" class="btn-secondary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.66-.22.66-.48v-1.7C6.73 19.91 6.14 18 6.14 18c-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.7.115 2.5.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.58.67.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>
@@ -260,7 +260,7 @@
   <div class="hero-meta">
     <span>
       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-      Keine Cloud вЂ” alles lokal
+      Keine Cloud — alles lokal
     </span>
     <span>
       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
@@ -279,34 +279,34 @@
 
 <!-- PLATFORMS -->
 <div class="platforms">
-  <p>UnterstГјtzte Plattformen</p>
+  <p>Unterstützte Plattformen</p>
   <div class="platform-icons">
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#E1306C,#833AB4)">рџ“ё</div>
+      <div class="circle" style="background:linear-gradient(135deg,#E1306C,#833AB4)">📸</div>
       <span>Instagram</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#1877F2,#0a4da6)">рџ‘Ќ</div>
+      <div class="circle" style="background:linear-gradient(135deg,#1877F2,#0a4da6)">👍</div>
       <span>Facebook</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#25D366,#128C7E)">рџ’¬</div>
+      <div class="circle" style="background:linear-gradient(135deg,#25D366,#128C7E)">💬</div>
       <span>WhatsApp</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#0A66C2,#004182)">рџ’ј</div>
+      <div class="circle" style="background:linear-gradient(135deg,#0A66C2,#004182)">💼</div>
       <span>LinkedIn</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#1DA1F2,#0d6eaf)">рџђ¦</div>
+      <div class="circle" style="background:linear-gradient(135deg,#1DA1F2,#0d6eaf)">🐦</div>
       <span>Twitter / X</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#2AABEE,#1a7bbf)">вњ€пёЏ</div>
+      <div class="circle" style="background:linear-gradient(135deg,#2AABEE,#1a7bbf)">✈️</div>
       <span>Telegram</span>
     </div>
     <div class="platform-icon">
-      <div class="circle" style="background:linear-gradient(135deg,#EA4335,#c5221f)">вњ‰пёЏ</div>
+      <div class="circle" style="background:linear-gradient(135deg,#EA4335,#c5221f)">✉️</div>
       <span>E-Mail</span>
     </div>
   </div>
@@ -316,38 +316,38 @@
 <section id="features">
   <div class="section-label">Funktionen</div>
   <h2>Alles, was Sie brauchen</h2>
-  <p class="section-sub">Entwickelt fГјr kleine und mittlere Unternehmen, die Zeit sparen und professionell kommunizieren wollen.</p>
+  <p class="section-sub">Entwickelt für kleine und mittlere Unternehmen, die Zeit sparen und professionell kommunizieren wollen.</p>
 
   <div class="features-grid">
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(99,102,241,.15)">рџ“Ґ</div>
+      <div class="feature-icon" style="background:rgba(99,102,241,.15)">📥</div>
       <h3>Unified Inbox</h3>
       <p>Alle Nachrichten von Instagram, LinkedIn, Telegram, WhatsApp und E-Mail in einem einzigen Postfach. Keine App-Wechsel mehr.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(34,197,94,.12)">рџ¤–</div>
+      <div class="feature-icon" style="background:rgba(34,197,94,.12)">🤖</div>
       <h3>KI-Crossposting</h3>
-      <p>Schreiben Sie einmal вЂ” die KI (Claude, GPT-4, Gemini) passt den Text automatisch fГјr jede Plattform an. Mit einem Klick verГ¶ffentlichen.</p>
+      <p>Schreiben Sie einmal — die KI (Claude, GPT-4, Gemini) passt den Text automatisch für jede Plattform an. Mit einem Klick veröffentlichen.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(59,130,246,.12)">рџ“¤</div>
+      <div class="feature-icon" style="background:rgba(59,130,246,.12)">📤</div>
       <h3>Mirror Post</h3>
-      <p>Denselben Beitrag gleichzeitig auf alle ausgewГ¤hlten KanГ¤le posten вЂ” Bilder, Videos, Text. Spart Stunden pro Woche.</p>
+      <p>Denselben Beitrag gleichzeitig auf alle ausgewählten Kanäle posten — Bilder, Videos, Text. Spart Stunden pro Woche.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(245,158,11,.12)">вЏ°</div>
+      <div class="feature-icon" style="background:rgba(245,158,11,.12)">⏰</div>
       <h3>Geplante Posts</h3>
-      <p>Legen Sie BeitrГ¤ge fГјr den optimalen Zeitpunkt fest. CrossPost Desktop sendet automatisch zum gewГјnschten Datum und Uhrzeit.</p>
+      <p>Legen Sie Beiträge für den optimalen Zeitpunkt fest. CrossPost Desktop sendet automatisch zum gewünschten Datum und Uhrzeit.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(239,68,68,.12)">рџ”’</div>
+      <div class="feature-icon" style="background:rgba(239,68,68,.12)">🔒</div>
       <h3>100% Lokal</h3>
-      <p>Alle Zugangsdaten und Nachrichten bleiben auf Ihrem PC. AES-256-verschlГјsselt. Kein Drittanbieter-Server sieht Ihre Daten.</p>
+      <p>Alle Zugangsdaten und Nachrichten bleiben auf Ihrem PC. AES-256-verschlüsselt. Kein Drittanbieter-Server sieht Ihre Daten.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon" style="background:rgba(168,85,247,.12)">вљЎ</div>
+      <div class="feature-icon" style="background:rgba(168,85,247,.12)">⚡</div>
       <h3>Leichtgewichtig</h3>
-      <p>Gebaut mit Tauri вЂ” nur ~80 MB RAM, kein eingebetteter Chromium. LГ¤uft flГјssig auch auf Г¤lteren Windows-Rechnern.</p>
+      <p>Gebaut mit Tauri — nur ~80 MB RAM, kein eingebetteter Chromium. Läuft flüssig auch auf älteren Windows-Rechnern.</p>
     </div>
   </div>
 </section>
@@ -359,20 +359,20 @@
       <div class="section-label">Unified Inbox</div>
       <h2>Alle Nachrichten. Ein Postfach.</h2>
       <p style="color:var(--muted);font-size:1rem;line-height:1.8;margin-bottom:28px">
-        Kein Wechsel zwischen Apps. Instagram-DMs, LinkedIn-Nachrichten, Telegram-Chats, WhatsApp und E-Mails вЂ” alles auf einem Bildschirm, mit KI-AntwortvorschlГ¤gen.
+        Kein Wechsel zwischen Apps. Instagram-DMs, LinkedIn-Nachrichten, Telegram-Chats, WhatsApp und E-Mails — alles auf einem Bildschirm, mit KI-Antwortvorschlägen.
       </p>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:12px">
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Echtzeit-Synchronisation aller KanГ¤le
+          <span style="color:var(--green)">✓</span> Echtzeit-Synchronisation aller Kanäle
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> KI-generierte AntwortvorschlГ¤ge
+          <span style="color:var(--green)">✓</span> KI-generierte Antwortvorschläge
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Filter nach Plattform, Datum, Status
+          <span style="color:var(--green)">✓</span> Filter nach Plattform, Datum, Status
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Offline-fГ¤hig вЂ” Daten lokal gespeichert
+          <span style="color:var(--green)">✓</span> Offline-fähig — Daten lokal gespeichert
         </li>
       </ul>
     </div>
@@ -382,11 +382,11 @@
         <div class="dot" style="background:#ff5f57"></div>
         <div class="dot" style="background:#ffbd2e"></div>
         <div class="dot" style="background:#28c840"></div>
-        <span class="mockup-title">Unified Inbox вЂ” CrossPost Desktop</span>
+        <span class="mockup-title">Unified Inbox — CrossPost Desktop</span>
       </div>
       <div class="mockup-body">
         <div class="msg-row">
-          <div class="msg-avatar" style="background:linear-gradient(135deg,#E1306C,#833AB4)">рџ“ё</div>
+          <div class="msg-avatar" style="background:linear-gradient(135deg,#E1306C,#833AB4)">📸</div>
           <div class="msg-content">
             <div class="msg-header">
               <span class="msg-name">Sarah M.</span>
@@ -397,18 +397,18 @@
           <span class="msg-badge" style="background:rgba(225,48,108,.2);color:#E1306C">IG</span>
         </div>
         <div class="msg-row" style="background:var(--bg3)">
-          <div class="msg-avatar" style="background:linear-gradient(135deg,#0A66C2,#004182)">рџ’ј</div>
+          <div class="msg-avatar" style="background:linear-gradient(135deg,#0A66C2,#004182)">💼</div>
           <div class="msg-content">
             <div class="msg-header">
               <span class="msg-name">Thomas K.</span>
               <span class="msg-time">13:15</span>
             </div>
-            <div class="msg-text">Hallo, ich wГјrde gerne mehr Гјber Ihre Agentur-Option erfahren.</div>
+            <div class="msg-text">Hallo, ich würde gerne mehr über Ihre Agentur-Option erfahren.</div>
           </div>
           <span class="msg-badge" style="background:rgba(10,102,194,.2);color:#0A66C2">LI</span>
         </div>
         <div class="msg-row">
-          <div class="msg-avatar" style="background:linear-gradient(135deg,#2AABEE,#1a7bbf)">вњ€пёЏ</div>
+          <div class="msg-avatar" style="background:linear-gradient(135deg,#2AABEE,#1a7bbf)">✈️</div>
           <div class="msg-content">
             <div class="msg-header">
               <span class="msg-name">Anna S.</span>
@@ -419,19 +419,19 @@
           <span class="msg-badge" style="background:rgba(42,171,238,.2);color:#2AABEE">TG</span>
         </div>
         <div class="msg-row">
-          <div class="msg-avatar" style="background:linear-gradient(135deg,#EA4335,#c5221f)">вњ‰пёЏ</div>
+          <div class="msg-avatar" style="background:linear-gradient(135deg,#EA4335,#c5221f)">✉️</div>
           <div class="msg-content">
             <div class="msg-header">
               <span class="msg-name">Max B.</span>
               <span class="msg-time">09:20</span>
             </div>
-            <div class="msg-text">Anfrage: Kooperationsangebot fГјr unsere Agentur</div>
+            <div class="msg-text">Anfrage: Kooperationsangebot für unsere Agentur</div>
           </div>
-          <span class="msg-badge" style="background:rgba(234,67,53,.2);color:#EA4335">вњ‰</span>
+          <span class="msg-badge" style="background:rgba(234,67,53,.2);color:#EA4335">✉</span>
         </div>
         <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
-          <p style="font-size:11px;color:#818cf8;font-weight:600;margin-bottom:6px">рџ¤– KI-Antwortvorschlag</p>
-          <p style="font-size:12px;color:var(--muted)">Vielen Dank fГјr Ihr Interesse! Gerne zeige ich Ihnen eine Demo вЂ” wann passt es Ihnen am besten?</p>
+          <p style="font-size:11px;color:#818cf8;font-weight:600;margin-bottom:6px">🤖 KI-Antwortvorschlag</p>
+          <p style="font-size:12px;color:var(--muted)">Vielen Dank für Ihr Interesse! Gerne zeige ich Ihnen eine Demo — wann passt es Ihnen am besten?</p>
         </div>
       </div>
     </div>
@@ -444,39 +444,39 @@
     <div class="ai-card">
       <p style="font-size:12px;font-weight:700;color:#818cf8;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px">KI-Posting</p>
       <div class="ai-prompt">
-        <span>Thema:</span> вЂћNeue Kollektion Herbst/Winter 2024 вЂ” elegant, nachhaltig, made in Germany"
+        <span>Thema:</span> „Neue Kollektion Herbst/Winter 2024 — elegant, nachhaltig, made in Germany"
       </div>
       <div style="display:flex;flex-wrap:wrap;margin-bottom:14px">
-        <span class="platform-tag" style="background:rgba(225,48,108,.15);color:#E1306C">рџ“ё Instagram</span>
-        <span class="platform-tag" style="background:rgba(10,102,194,.15);color:#0A66C2">рџ’ј LinkedIn</span>
-        <span class="platform-tag" style="background:rgba(29,161,242,.15);color:#1DA1F2">рџђ¦ Twitter</span>
+        <span class="platform-tag" style="background:rgba(225,48,108,.15);color:#E1306C">📸 Instagram</span>
+        <span class="platform-tag" style="background:rgba(10,102,194,.15);color:#0A66C2">💼 LinkedIn</span>
+        <span class="platform-tag" style="background:rgba(29,161,242,.15);color:#1DA1F2">🐦 Twitter</span>
       </div>
       <div class="ai-output">
-        вњЁ <strong>Instagram:</strong> Herbst/Winter 2024 ist da! Unsere neue Kollektion verbindet zeitlose Eleganz mit nachhaltigem Design вЂ“ <em>made in Germany</em>. рџЌ‚рџЊї Jetzt entdecken! #Fashion #Nachhaltigkeit #MadeInGermany
+        ✨ <strong>Instagram:</strong> Herbst/Winter 2024 ist da! Unsere neue Kollektion verbindet zeitlose Eleganz mit nachhaltigem Design – <em>made in Germany</em>. 🍂🌿 Jetzt entdecken! #Fashion #Nachhaltigkeit #MadeInGermany
       </div>
       <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--muted)">
-        <strong style="color:var(--text)">LinkedIn:</strong> Wir freuen uns, unsere neue Herbst/Winter-Kollektion 2024 vorzustellen. Nachhaltigkeit und QualitГ¤t вЂћMade in Germany" stehen im MittelpunktвЂ¦
+        <strong style="color:var(--text)">LinkedIn:</strong> Wir freuen uns, unsere neue Herbst/Winter-Kollektion 2024 vorzustellen. Nachhaltigkeit und Qualität „Made in Germany" stehen im Mittelpunkt…
       </div>
     </div>
 
     <div>
       <div class="section-label">KI-Assistent</div>
-      <h2>Einmal schreiben. Гњberall posten.</h2>
+      <h2>Einmal schreiben. Überall posten.</h2>
       <p style="color:var(--muted);font-size:1rem;line-height:1.8;margin-bottom:28px">
-        Geben Sie ein Thema ein вЂ” CrossPost Desktop erstellt automatisch plattformgerechte Texte fГјr Instagram, LinkedIn, Twitter und mehr. UnterstГјtzt Claude, GPT-4 und Gemini.
+        Geben Sie ein Thema ein — CrossPost Desktop erstellt automatisch plattformgerechte Texte für Instagram, LinkedIn, Twitter und mehr. Unterstützt Claude, GPT-4 und Gemini.
       </p>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:12px">
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Optimale LГ¤nge pro Plattform
+          <span style="color:var(--green)">✓</span> Optimale Länge pro Plattform
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Hashtag-VorschlГ¤ge automatisch
+          <span style="color:var(--green)">✓</span> Hashtag-Vorschläge automatisch
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Eigenen API-Key oder unser Proxy
+          <span style="color:var(--green)">✓</span> Eigenen API-Key oder unser Proxy
         </li>
         <li style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)">
-          <span style="color:var(--green)">вњ“</span> Ton anpassbar: professionell, locker, emotional
+          <span style="color:var(--green)">✓</span> Ton anpassbar: professionell, locker, emotional
         </li>
       </ul>
     </div>
@@ -487,26 +487,26 @@
 <section id="privacy" style="background:var(--bg2);border-radius:24px;margin:0 20px;padding:60px 40px;max-width:none">
   <div style="max-width:1060px;margin:0 auto">
     <div class="section-label">Datenschutz</div>
-    <h2>Ihre Daten gehГ¶ren Ihnen</h2>
-    <p class="section-sub">CrossPost Desktop wurde von Grund auf DSGVO-konform entwickelt. Kein einziges Passwort verlГ¤sst Ihren Computer.</p>
+    <h2>Ihre Daten gehören Ihnen</h2>
+    <p class="section-sub">CrossPost Desktop wurde von Grund auf DSGVO-konform entwickelt. Kein einziges Passwort verlässt Ihren Computer.</p>
     <div class="privacy-grid">
       <div class="privacy-card">
-        <div class="icon">рџЏ </div>
+        <div class="icon">🏠</div>
         <h3>100% lokal</h3>
         <p>SQLite-Datenbank auf Ihrem PC. Kein Server, keine Cloud, kein Abo bei Drittanbietern.</p>
       </div>
       <div class="privacy-card">
-        <div class="icon">рџ”ђ</div>
-        <h3>AES-256 verschlГјsselt</h3>
-        <p>Alle Zugangsdaten werden mit militГ¤rischer VerschlГјsselung auf Ihrem GerГ¤t gespeichert.</p>
+        <div class="icon">🔐</div>
+        <h3>AES-256 verschlüsselt</h3>
+        <p>Alle Zugangsdaten werden mit militärischer Verschlüsselung auf Ihrem Gerät gespeichert.</p>
       </div>
       <div class="privacy-card">
-        <div class="icon">рџ‡©рџ‡Є</div>
+        <div class="icon">🇩🇪</div>
         <h3>DSGVO-konform</h3>
-        <p>Entwickelt in Frankfurt am Main. Keine Datenweitergabe an Dritte. Geeignet fГјr EU-Unternehmen.</p>
+        <p>Entwickelt in Frankfurt am Main. Keine Datenweitergabe an Dritte. Geeignet für EU-Unternehmen.</p>
       </div>
       <div class="privacy-card">
-        <div class="icon">рџљ«</div>
+        <div class="icon">🚫</div>
         <h3>Kein Tracking</h3>
         <p>Keine Nutzungsanalyse, keine Telemetrie, keine Werbung. Open Source auf GitHub.</p>
       </div>
@@ -519,28 +519,28 @@
   <div style="max-width:1060px;margin:0 auto">
     <div class="section-label" style="text-align:center">Preise</div>
     <h2 style="text-align:center;margin-bottom:12px">Einfache, transparente Preise</h2>
-    <p class="section-sub" style="text-align:center">Kein Abo-Chaos. Monatlich kГјndbar. Keine versteckten Kosten.</p>
+    <p class="section-sub" style="text-align:center">Kein Abo-Chaos. Monatlich kündbar. Keine versteckten Kosten.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin-top:48px">
 
       <!-- SOLO -->
       <div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:20px">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Solo</div>
-          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">в‚¬29<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">FГјr Einzelpersonen & Freelancer</div>
+          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">€29<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Für Einzelpersonen & Freelancer</div>
         </div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:10px">
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> 1 Konto pro Plattform</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Unified Inbox</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Mirror Crossposting</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Geplante Posts</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">вЂ“</span> KI-Inhaltsgenerierung</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">вЂ“</span> Pipeline Posting</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> 1 Konto pro Plattform</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Unified Inbox</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Mirror Crossposting</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Geplante Posts</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">–</span> KI-Inhaltsgenerierung</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">–</span> Pipeline Posting</li>
         </ul>
         <a href="https://crosspost-license.pylypchukandrii770.workers.dev/checkout?plan=solo" target="_blank"
           style="display:block;text-align:center;padding:13px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border);color:var(--text);font-weight:600;font-size:14px;text-decoration:none;transition:border-color .2s"
           onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-          Solo kaufen в†’
+          Solo kaufen →
         </a>
       </div>
 
@@ -549,21 +549,21 @@
         <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;white-space:nowrap;letter-spacing:.5px">BELIEBTESTE WAHL</div>
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Pro</div>
-          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">в‚¬79<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">FГјr KMU & Agenturen mit 1вЂ“3 Marken</div>
+          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">€79<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Für KMU & Agenturen mit 1–3 Marken</div>
         </div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:10px">
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> <strong style="color:var(--text)">3 Konten</strong> pro Plattform</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Alles aus Solo</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> <strong style="color:var(--text)">KI-Inhaltsgenerierung</strong></li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> <strong style="color:var(--text)">Pipeline Posting</strong></li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> PrioritГ¤ts-Support</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">вЂ“</span> White Label</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> <strong style="color:var(--text)">3 Konten</strong> pro Plattform</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Alles aus Solo</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> <strong style="color:var(--text)">KI-Inhaltsgenerierung</strong></li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> <strong style="color:var(--text)">Pipeline Posting</strong></li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Prioritäts-Support</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--muted)">–</span> White Label</li>
         </ul>
         <a href="https://crosspost-license.pylypchukandrii770.workers.dev/checkout?plan=pro" target="_blank"
           style="display:block;text-align:center;padding:13px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;font-weight:700;font-size:14px;text-decoration:none;transition:opacity .2s"
           onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
-          Pro kaufen в†’
+          Pro kaufen →
         </a>
       </div>
 
@@ -571,21 +571,21 @@
       <div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:20px">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Agency</div>
-          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">в‚¬199<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">FГјr Agenturen & Teams</div>
+          <div style="font-size:42px;font-weight:800;color:var(--text);margin-top:8px">€199<span style="font-size:16px;font-weight:400;color:var(--muted)">/Monat</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Für Agenturen & Teams</div>
         </div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:10px">
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> <strong style="color:var(--text)">10 Konten</strong> pro Plattform</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Alles aus Pro</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> <strong style="color:var(--text)">White Label</strong> (Logo + Farben)</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Dedizierter Support</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Onboarding-Call inklusive</li>
-          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">вњ“</span> Individuelle Anpassungen</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> <strong style="color:var(--text)">10 Konten</strong> pro Plattform</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Alles aus Pro</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> <strong style="color:var(--text)">White Label</strong> (Logo + Farben)</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Dedizierter Support</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Onboarding-Call inklusive</li>
+          <li style="display:flex;gap:10px;font-size:14px;color:var(--muted)"><span style="color:var(--green)">✓</span> Individuelle Anpassungen</li>
         </ul>
         <a href="mailto:info@andrii-it.de?subject=Agency%20Lizenz%20Anfrage"
           style="display:block;text-align:center;padding:13px;border-radius:10px;background:var(--bg3);border:1.5px solid var(--border);color:var(--text);font-weight:600;font-size:14px;text-decoration:none;transition:border-color .2s"
           onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-          Kontakt aufnehmen в†’
+          Kontakt aufnehmen →
         </a>
       </div>
 
@@ -593,9 +593,9 @@
 
     <!-- money-back guarantee -->
     <div style="text-align:center;margin-top:40px;padding:20px;background:var(--bg2);border-radius:14px;border:1px solid var(--border)">
-      <span style="font-size:20px">рџ’°</span>
+      <span style="font-size:20px">💰</span>
       <span style="font-size:14px;color:var(--muted);margin-left:10px">
-        <strong style="color:var(--text)">14-Tage-Geld-zurГјck-Garantie</strong> вЂ” kein Risiko, kein Г„rger.
+        <strong style="color:var(--text)">14-Tage-Geld-zurück-Garantie</strong> — kein Risiko, kein Ärger.
       </span>
     </div>
   </div>
@@ -604,35 +604,35 @@
 <!-- SYSTEM REQUIREMENTS -->
 <section>
   <div class="section-label">Systemanforderungen</div>
-  <h2>LГ¤uft auf fast jedem Windows-PC</h2>
-  <p class="section-sub">Tauri-Technologie statt Electron вЂ” minimal, schnell, ressourcenschonend.</p>
+  <h2>Läuft auf fast jedem Windows-PC</h2>
+  <p class="section-sub">Tauri-Technologie statt Electron — minimal, schnell, ressourcenschonend.</p>
   <div class="req-grid">
     <div class="req-item">
-      <div class="req-icon">рџ–ҐпёЏ</div>
+      <div class="req-icon">🖥️</div>
       <div>
         <h4>Betriebssystem</h4>
         <p>Windows 10 (Build 1803+) oder Windows 11, 64-Bit</p>
       </div>
     </div>
     <div class="req-item">
-      <div class="req-icon">рџ’ѕ</div>
+      <div class="req-icon">💾</div>
       <div>
         <h4>Arbeitsspeicher</h4>
         <p>Min. 256 MB RAM (empfohlen: 512 MB+)</p>
       </div>
     </div>
     <div class="req-item">
-      <div class="req-icon">рџ’ї</div>
+      <div class="req-icon">💿</div>
       <div>
         <h4>Speicherplatz</h4>
         <p>Ca. 300 MB nach Installation</p>
       </div>
     </div>
     <div class="req-item">
-      <div class="req-icon">рџЊђ</div>
+      <div class="req-icon">🌐</div>
       <div>
         <h4>Internet</h4>
-        <p>FГјr API-Verbindungen zu den Plattformen erforderlich</p>
+        <p>Für API-Verbindungen zu den Plattformen erforderlich</p>
       </div>
     </div>
   </div>
@@ -642,17 +642,17 @@
 <div class="cta-section">
   <div class="section-label" style="text-align:center">Jetzt starten</div>
   <h2>Bereit, Zeit zu sparen?</h2>
-  <p>Laden Sie CrossPost Desktop herunter und verbinden Sie Ihre ersten KanГ¤le in weniger als 5 Minuten.</p>
+  <p>Laden Sie CrossPost Desktop herunter und verbinden Sie Ihre ersten Kanäle in weniger als 5 Minuten.</p>
   <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
     <a href="https://github.com/pilipandr770/Desktop-Poster-/releases/download/v0.9.2-beta/CrossPost.Desktop_0.9.2_x64-setup.exe" class="btn-primary btn-download">
 
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 16l-6-6h4V4h4v6h4l-6 6z"/><path d="M4 20h16" stroke-linecap="round"/></svg>
-      в¬‡ Jetzt herunterladen вЂ” Windows .exe
+      ⬇ Jetzt herunterladen — Windows .exe
     </a>
-    <a href="mailto:info@andrii-it.de" class="btn-secondary">вњ‰ Kontakt aufnehmen</a>
+    <a href="mailto:info@andrii-it.de" class="btn-secondary">✉ Kontakt aufnehmen</a>
   </div>
   <p style="margin-top:20px;font-size:13px;color:var(--muted)">
-    Beta-Version В· Kostenlos testen В· Keine Kreditkarte erforderlich
+    Beta-Version · Kostenlos testen · Keine Kreditkarte erforderlich
   </p>
 </div>
 
@@ -667,7 +667,7 @@
       </linearGradient></defs>
     </svg>
     <span style="font-weight:700;color:var(--text)">CrossPost Desktop</span>
-    <span>В· В© 2024 Andrii Pylypchuk В· Frankfurt am Main</span>
+    <span>· © 2024 Andrii Pylypchuk · Frankfurt am Main</span>
   </div>
   <div style="display:flex;gap:24px">
     <a href="https://github.com/pilipandr770/Desktop-Poster-">GitHub</a>
